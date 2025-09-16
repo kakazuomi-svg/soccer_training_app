@@ -15,10 +15,15 @@ SCOPE = [
 ]
 
 # credentials.json を使って認証
-creds = Credentials.from_service_account_file(
-    r"C:\Users\kakaz\Desktop\soccer_training_app\credentials.json",
+import streamlit as st
+from google.oauth2.service_account import Credentials
+
+# Secrets から読み込む
+creds = Credentials.from_service_account_info(
+    st.secrets["google_service_account"],
     scopes=SCOPE
 )
+
 client = gspread.authorize(creds)# ワークシートを開く
 sheet = client.open(SHEET_NAME).worksheet(WORKSHEET)
 
@@ -37,3 +42,4 @@ if st.button("変更を保存"):
     sheet.clear()  # ワークシートをクリア
     set_with_dataframe(sheet, edited_df)
     st.success("✅ スプレッドシートを更新しました！")
+
