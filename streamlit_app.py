@@ -11,7 +11,8 @@ creds = Credentials.from_service_account_info(
     st.secrets["google_service_account"], scopes=SCOPE
 )
 client = gspread.authorize(creds)
-worksheet = client.open("サッカー特訓記録").worksheet("シート1")
+worksheet = client.open("soccer_training").worksheet("シート1")
+
 
 # 入力フォーム
 with st.form("training_form"):
@@ -44,4 +45,5 @@ if submitted:
         worksheet.clear()
         worksheet.update([df.columns.values.tolist()] + df.values.tolist())
         st.info("日付順にソートしました！")
+
 
