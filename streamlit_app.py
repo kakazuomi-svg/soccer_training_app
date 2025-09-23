@@ -15,6 +15,8 @@ worksheet = client.open("soccer_training").worksheet("シート1")
 
 # 1行目をヘッダーとして取得
 headers = worksheet.row_values(1)
+st.write("読み込んだヘッダー:", headers)
+
 
 with st.form("training_form"):
     日付 = st.date_input("日付", value=date.today())
@@ -48,3 +50,4 @@ if submitted:
         worksheet.clear()
         worksheet.update([df.columns.values.tolist()] + df.values.tolist())
         st.info("日付順にソートしました！")
+
