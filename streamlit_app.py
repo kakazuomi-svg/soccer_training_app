@@ -39,15 +39,19 @@ if st.button("読み込み"):
 
 # フォーム
 with st.form("training_form"):
-    inputs = st.session_state.get("inputs", {col: "" for col in headers if col != "日付"})
     for col in headers:
         if col != "日付":
-            inputs[col] = st.text_input(col, value=inputs[col], key=col)
+            # セッションに値がなければ空文字
+            if col not in st.session_state:
+                st.session_state[col] = ""
+            # 入力欄とセッションを直結させる
+            st.text_input(col, key=col)
+
     submitted = st.form_submit_button("保存")
 
 # 保存処理
 if submitted:
-    row_data = [日付キー] + [inputs[col] for col in headers if col != "日付"]
+    row_data = [日付キー] + [st.session_state[col] for col in headers if col != "日付"]
 
     if 日付キー in dates:
         row_index = dates.index(日付キー) + 1
@@ -60,7 +64,12 @@ if submitted:
         st.success(f"{日付キー} のデータを追加しました！")
 
     # 入力欄リセット
-    st.session_state["inputs"] = {col: "" for col in headers if col != "日付"}
+    for col in headers:
+        if col != "日付":
+            st.session_state[col] = ""
+
+    # ソート処理は省略（前と同じ）
+
 
     # 日付順にソート
     data = worksheet.get_all_records()
@@ -70,3 +79,4 @@ if submitted:
         worksheet.clear()
         worksheet.update([df.columns.values.tolist()] + df.values.tolist())
         st.info("日付順にソートしました！")
+
