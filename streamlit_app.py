@@ -16,31 +16,33 @@ worksheet = client.open("soccer_training").worksheet("シート1")
 # ヘッダー行を取得
 headers = worksheet.row_values(1)
 
-# 入力フォーム
-with st.form("training_form"):
-    日付 = st.date_input("日付", value=date.today())
-    日付キー = 日付.strftime("%Y%m%d")
-    dates = worksheet.col_values(1)
+# 日付入力（先に選ぶ）
+日付 = st.date_input("日付を選んでください", value=date.today())
+日付キー = 日付.strftime("%Y%m%d")
+dates = worksheet.col_values(1)
 
-    inputs = {}
-
+# 「読み込み」ボタン
+if st.button("読み込み"):
     if 日付キー in dates:
-        # 既存データを読み込み
+        # 登録済み → 既存データを読み込む
         row_index = dates.index(日付キー) + 1
         existing = worksheet.row_values(row_index)
-
-        st.info(f"{日付キー} のデータが既にあります。変更して保存すると上書きされます。")
-
-        for i, col in enumerate(headers[1:], start=2):  # B列以降
-            val = existing[i-1] if i-1 < len(existing) else ""
-            inputs[col] = st.text_input(col, value=val, key=col)
-
+        st.session_state["inputs"] = {
+            col: (existing[i] if i < len(existing) else "")
+            for i, col in enumerate(headers[1:], start=1)
+        }
+        st.info(f"{日付キー} のデータを読み込みました（編集モード）")
     else:
-        # 新規入力フォーム
-        for col in headers:
-            if col != "日付":
-                inputs[col] = st.text_input(col, key=col)
+        # 未登録 → 空欄フォーム
+        st.session_state["inputs"] = {col: "" for col in headers if col != "日付"}
+        st.info(f"{日付キー} のデータは未登録です（新規入力モード）")
 
+# フォーム
+with st.form("training_form"):
+    inputs = st.session_state.get("inputs", {col: "" for col in headers if col != "日付"})
+    for col in headers:
+        if col != "日付":
+            inputs[col] = st.text_input(col, value=inputs[col], key=col)
     submitted = st.form_submit_button("保存")
 
 # 保存処理
@@ -57,9 +59,8 @@ if submitted:
         worksheet.append_row(row_data)
         st.success(f"{日付キー} のデータを追加しました！")
 
-    # 入力欄をリセット
-    for col in inputs.keys():
-        st.session_state[col] = ""
+    # 入力欄リセット
+    st.session_state["inputs"] = {col: "" for col in headers if col != "日付"}
 
     # 日付順にソート
     data = worksheet.get_all_records()
@@ -69,5 +70,3 @@ if submitted:
         worksheet.clear()
         worksheet.update([df.columns.values.tolist()] + df.values.tolist())
         st.info("日付順にソートしました！")
-
-
