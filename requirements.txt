@@ -1,7 +1,8 @@
 streamlit
+pandas
 gspread
 gspread-dataframe
 oauth2client
-pandas
+matplotlib
 
 
