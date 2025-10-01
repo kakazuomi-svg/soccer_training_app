@@ -36,18 +36,24 @@ if st.button("読み込み"):
                 st.session_state[col] = ""
 
 # フォーム
+
 with st.form("training_form"):
     for col in headers:
         if col != "日付":
             if col not in st.session_state:
-                st.session_state[col] = ""
+                if col in ["年齢", "リフティングレベル"]:
+                    st.session_state[col] = 0
+                elif col == "メモ":
+                    st.session_state[col] = ""
+                else:
+                    st.session_state[col] = 0.0
 
             if col in ["年齢", "リフティングレベル"]:
-                st.number_input(col, key=col, step=1, format="%d")  # 整数
-            elif col in ["メモ"]:
-                st.text_input(col, key=col)  # 文字列
+                st.number_input(col, key=col, step=1, format="%d", value=st.session_state[col])
+            elif col == "メモ":
+                st.text_input(col, key=col, value=st.session_state[col])
             else:
-                st.number_input(col, key=col, format="%.2f")  # 小数点2位
+                st.number_input(col, key=col, format="%.2f", value=st.session_state[col])
     submitted = st.form_submit_button("保存")
 
 # 保存処理
@@ -112,6 +118,7 @@ if submitted:
         worksheet.clear()
         worksheet.update([df.columns.values.tolist()] + df.values.tolist())
         st.info("日付順にソートしました！")
+
 
 
 
