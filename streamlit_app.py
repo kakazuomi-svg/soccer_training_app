@@ -73,8 +73,7 @@ if submitted:
     # 入力欄リセット
  
     for col in headers:
-        if col in st.session_state and 
-    col != "日付":
+        if col in st.session_state and col != "日付":
             del st.session_state[col]
 
     # ソート
@@ -115,6 +114,7 @@ if submitted:
         worksheet.clear()
         worksheet.update([df.columns.values.tolist()] + df.values.tolist())
         st.info("日付順にソートしました！")
+
 
 
 
