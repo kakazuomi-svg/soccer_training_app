@@ -65,14 +65,14 @@ if submitted:
         st.success(f"{日付キー} のデータを追加しました！")
 
     # 入力欄リセット
-　　for col in headers:
-    if col != "日付":
-        if col in ["年齢", "リフティングレベル"]:
-            st.session_state[col] = 0  # 整数
-        elif col == "メモ":
-            st.session_state[col] = ""  # 文字列
-        else:
-            st.session_state[col] = 0.0  # 小数
+    for col in headers:
+        if col != "日付":
+            if col in ["年齢", "リフティングレベル"]:
+                st.session_state[col] = 0  # 整数
+            elif col == "メモ":
+                st.session_state[col] = ""  # 文字列
+            else:
+                st.session_state[col] = 0.0  # 小数
 
     # ソート
     data = worksheet.get_all_records()
@@ -112,6 +112,7 @@ if submitted:
         worksheet.clear()
         worksheet.update([df.columns.values.tolist()] + df.values.tolist())
         st.info("日付順にソートしました！")
+
 
 
 
