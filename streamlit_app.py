@@ -71,10 +71,10 @@ if submitted:
         st.success(f"{日付キー} のデータを追加しました！")
 
     # 入力欄リセット
- 
+
     for col in headers:
-        if col in st.session_state and col != "日付":
-            del st.session_state[col]
+    if col in st.session_state and col != "日付":
+        del st.session_state[col]
 
     # ソート
     data = worksheet.get_all_records()
@@ -91,9 +91,11 @@ if submitted:
         ]
         string_cols = ["メモ"]
 
+   
         for col in date_cols:
             if col in df.columns:
-                df[col] = pd.to_datetime(df[col], errors="coerce")
+        # "20250917" みたいな文字列を日付型に変換
+                df[col] = pd.to_datetime(df[col], format="%Y%m%d", errors="coerce")
 
         for col in int_cols:
             if col in df.columns:
@@ -114,6 +116,7 @@ if submitted:
         worksheet.clear()
         worksheet.update([df.columns.values.tolist()] + df.values.tolist())
         st.info("日付順にソートしました！")
+
 
 
 
