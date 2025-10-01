@@ -4,7 +4,20 @@ import pandas as pd
 from google.oauth2.service_account import Credentials
 import gspread
 
-# Google認証
+# --- 安全な数値変換用の関数 ---
+def safe_int(val, default=0):
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        return default
+
+def safe_float(val, default=0.0):
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return default
+
+# --- Google認証 ---
 SCOPE = ["https://spreadsheets.google.com/feeds",
          "https://www.googleapis.com/auth/drive"]
 creds = Credentials.from_service_account_info(
@@ -15,16 +28,6 @@ worksheet = client.open("soccer_training").worksheet("シート1")
 
 # ヘッダー取得
 headers = worksheet.row_values(1)
-
-# カラム分類
-date_cols = ["日付"]
-int_cols = ["年齢", "リフティングレベル"]
-float_cols = [
-    "身長", "体重", "4mダッシュ", "50m走", "1.3km",
-    "立ち幅跳び", "握力（右）", "握力（左）",
-    "リフティング時間", "パントキック", "ゴールキック", "ソフトボール投げ", "疲労度"
-]
-string_cols = ["メモ"]
 
 # 日付入力
 日付 = st.date_input("日付を選んでください", value=date.today())
@@ -38,37 +41,44 @@ if st.button("読み込み"):
         existing = worksheet.row_values(row_index)
         st.info(f"{日付キー} のデータを読み込みました（編集モード）")
         for i, col in enumerate(headers[1:], start=1):  # B列以降
-            if col in int_cols:
-                st.session_state[col] = int(existing[i]) if i < len(existing) and existing[i] != "" else 0
-            elif col in float_cols:
-                st.session_state[col] = float(existing[i]) if i < len(existing) and existing[i] != "" else 0.0
-            elif col in string_cols:
-                st.session_state[col] = existing[i] if i < len(existing) else ""
-            else:
-                st.session_state[col] = ""
+            st.session_state[col] = existing[i] if i < len(existing) else ""
     else:
         st.info(f"{日付キー} は未登録です（新規入力モード）")
         for col in headers:
-            if col in int_cols:
-                st.session_state[col] = 0
-            elif col in float_cols:
-                st.session_state[col] = 0.0
-            elif col in string_cols:
-                st.session_state[col] = ""
-            else:
+            if col != "日付":
                 st.session_state[col] = ""
 
-# フォーム
+# --- フォーム入力 ---
 with st.form("training_form"):
     for col in headers:
         if col == "日付":
             continue
-        if col in int_cols:
-            st.number_input(col, key=col, step=1, format="%d", value=int(st.session_state[col]))
-        elif col in float_cols:
-            st.number_input(col, key=col, step=0.01, format="%.2f", value=float(st.session_state[col]))
-        elif col in string_cols:
-            st.text_input(col, key=col, value=st.session_state[col])
+
+        # 整数型
+        if col in ["年齢", "リフティングレベル"]:
+            st.session_state[col] = safe_int(st.session_state.get(col, ""))
+            st.number_input(
+                col, key=col, step=1, format="%d",
+                value=st.session_state[col]
+            )
+
+        # 小数型
+        elif col in [
+            "身長", "体重", "4mダッシュ", "50m走", "1.3km",
+            "立ち幅跳び", "握力（右）", "握力（左）",
+            "リフティング時間", "パントキック", "ゴールキック",
+            "ソフトボール投げ", "疲労度"
+        ]:
+            st.session_state[col] = safe_float(st.session_state.get(col, ""))
+            st.number_input(
+                col, key=col, step=0.01, format="%.2f",
+                value=st.session_state[col]
+            )
+
+        # 文字列
+        elif col == "メモ":
+            st.text_input(col, key=col, value=st.session_state.get(col, ""))
+
     submitted = st.form_submit_button("保存")
 
 # 保存処理
@@ -87,11 +97,7 @@ if submitted:
 
     # 入力欄リセット
     for col in headers:
-        if col in int_cols:
-            st.session_state[col] = 0
-        elif col in float_cols:
-            st.session_state[col] = 0.0
-        elif col in string_cols:
+        if col != "日付":
             st.session_state[col] = ""
 
     # ソート
@@ -102,6 +108,7 @@ if submitted:
         worksheet.clear()
         worksheet.update([df.columns.values.tolist()] + df.values.tolist())
         st.info("日付順にソートしました！")
+
 
 
 
