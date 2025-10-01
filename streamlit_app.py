@@ -16,6 +16,16 @@ worksheet = client.open("soccer_training").worksheet("シート1")
 # ヘッダー取得
 headers = worksheet.row_values(1)
 
+# カラム分類
+date_cols = ["日付"]
+int_cols = ["年齢", "リフティングレベル"]
+float_cols = [
+    "身長", "体重", "4mダッシュ", "50m走", "1.3km",
+    "立ち幅跳び", "握力（右）", "握力（左）",
+    "リフティング時間", "パントキック", "ゴールキック", "ソフトボール投げ", "疲労度"
+]
+string_cols = ["メモ"]
+
 # 日付入力
 日付 = st.date_input("日付を選んでください", value=date.today())
 日付キー = 日付.strftime("%Y%m%d")
@@ -28,32 +38,37 @@ if st.button("読み込み"):
         existing = worksheet.row_values(row_index)
         st.info(f"{日付キー} のデータを読み込みました（編集モード）")
         for i, col in enumerate(headers[1:], start=1):  # B列以降
-            st.session_state[col] = existing[i] if i < len(existing) else ""
+            if col in int_cols:
+                st.session_state[col] = int(existing[i]) if i < len(existing) and existing[i] != "" else 0
+            elif col in float_cols:
+                st.session_state[col] = float(existing[i]) if i < len(existing) and existing[i] != "" else 0.0
+            elif col in string_cols:
+                st.session_state[col] = existing[i] if i < len(existing) else ""
+            else:
+                st.session_state[col] = ""
     else:
         st.info(f"{日付キー} は未登録です（新規入力モード）")
         for col in headers:
-            if col != "日付":
+            if col in int_cols:
+                st.session_state[col] = 0
+            elif col in float_cols:
+                st.session_state[col] = 0.0
+            elif col in string_cols:
+                st.session_state[col] = ""
+            else:
                 st.session_state[col] = ""
 
 # フォーム
-
 with st.form("training_form"):
     for col in headers:
-        if col != "日付":
-            if col not in st.session_state:
-                if col in ["年齢", "リフティングレベル"]:
-                    st.session_state[col] = 0
-                elif col == "メモ":
-                    st.session_state[col] = ""
-                else:
-                    st.session_state[col] = 0.0
-
-            if col in ["年齢", "リフティングレベル"]:
-                st.number_input(col, key=col, step=1, format="%d", value=st.session_state[col])
-            elif col == "メモ":
-                st.text_input(col, key=col, value=st.session_state[col])
-            else:
-                st.number_input(col, key=col, format="%.2f", value=st.session_state[col])
+        if col == "日付":
+            continue
+        if col in int_cols:
+            st.number_input(col, key=col, step=1, format="%d", value=int(st.session_state[col]))
+        elif col in float_cols:
+            st.number_input(col, key=col, step=0.01, format="%.2f", value=float(st.session_state[col]))
+        elif col in string_cols:
+            st.text_input(col, key=col, value=st.session_state[col])
     submitted = st.form_submit_button("保存")
 
 # 保存処理
@@ -72,56 +87,21 @@ if submitted:
 
     # 入力欄リセット
     for col in headers:
-        if col in st.session_state and col != "日付":
-            del st.session_state[col]   # いったん削除
+        if col in int_cols:
+            st.session_state[col] = 0
+        elif col in float_cols:
+            st.session_state[col] = 0.0
+        elif col in string_cols:
+            st.session_state[col] = ""
 
     # ソート
     data = worksheet.get_all_records()
     df = pd.DataFrame(data)
-
     if not df.empty:
-        # ---- 型変換ここから ----
-        date_cols = ["日付"]
-        int_cols = ["年齢", "リフティングレベル"]
-        float_cols = [
-            "身長", "体重", "4mダッシュ", "50m走", "1.3km",
-            "立ち幅跳び", "握力（右）", "握力（左）",
-            "リフティング時間", "パントキック", "ゴールキック", "ソフトボール投げ", "疲労度"
-        ]
-        string_cols = ["メモ"]
-
-   
-        for col in date_cols:
-            if col in df.columns:
-        # "20250917" みたいな文字列を日付型に変換
-                df[col] = pd.to_datetime(df[col], format="%Y%m%d", errors="coerce")
-
-      
-        for col in int_cols:
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors="coerce")  # 数値に変換（NaN許容）
-                df[col] = df[col].dropna().astype(int).astype("Int64")  # 整数化（欠損はNaNのまま）
-
-        for col in float_cols:
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors="coerce").round(2)
-
-        for col in string_cols:
-            if col in df.columns:
-                df[col] = df[col].astype(str)
-
-        df = df.fillna("")
-    # ---- 型変換ここまで ----
-
         df = df.sort_values(by="日付")
         worksheet.clear()
         worksheet.update([df.columns.values.tolist()] + df.values.tolist())
         st.info("日付順にソートしました！")
-
-
-
-
-
 
 
 
