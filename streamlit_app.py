@@ -97,9 +97,11 @@ if submitted:
         # "20250917" みたいな文字列を日付型に変換
                 df[col] = pd.to_datetime(df[col], format="%Y%m%d", errors="coerce")
 
+      
         for col in int_cols:
             if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors="coerce").fillna("").astype("Int64")
+                df[col] = pd.to_numeric(df[col], errors="coerce")  # 数値に変換（NaN許容）
+                df[col] = df[col].dropna().astype(int).astype("Int64")  # 整数化（欠損はNaNのまま）
 
         for col in float_cols:
             if col in df.columns:
@@ -116,6 +118,7 @@ if submitted:
         worksheet.clear()
         worksheet.update([df.columns.values.tolist()] + df.values.tolist())
         st.info("日付順にソートしました！")
+
 
 
 
