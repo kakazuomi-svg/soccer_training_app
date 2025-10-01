@@ -68,37 +68,38 @@ if submitted:
     df = pd.DataFrame(data)
 
     if not df.empty:
-    # ---- 型変換ここから ----
-    date_cols = ["日付"]
-    int_cols = ["年齢", "リフティングレベル"]
-    float_cols = [
-        "身長", "体重", "4mダッシュ", "50m走", "1.3km",
-        "立ち幅跳び", "握力（右）", "握力（左）",
-        "リフティング時間", "パントキック", "ゴールキック", "ソフトボール投げ", "疲労度"
-    ]
-    string_cols = ["メモ"]
+        # ---- 型変換ここから ----
+        date_cols = ["日付"]
+        int_cols = ["年齢", "リフティングレベル"]
+        float_cols = [
+            "身長", "体重", "4mダッシュ", "50m走", "1.3km",
+            "立ち幅跳び", "握力（右）", "握力（左）",
+            "リフティング時間", "パントキック", "ゴールキック", "ソフトボール投げ", "疲労度"
+        ]
+        string_cols = ["メモ"]
 
-    for col in date_cols:
-        if col in df.columns:
-            df[col] = pd.to_datetime(df[col], errors="coerce")
+        for col in date_cols:
+            if col in df.columns:
+                df[col] = pd.to_datetime(df[col], errors="coerce")
 
-    for col in int_cols:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce").fillna("").astype("Int64")
+        for col in int_cols:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce").fillna("").astype("Int64")
 
-    for col in float_cols:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce").round(2)
+        for col in float_cols:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce").round(2)
 
-    for col in string_cols:
-        if col in df.columns:
-            df[col] = df[col].astype(str)
+        for col in string_cols:
+            if col in df.columns:
+                df[col] = df[col].astype(str)
 
-    df = df.fillna("")
+        df = df.fillna("")
     # ---- 型変換ここまで ----
 
-    df = df.sort_values(by="日付")
-    worksheet.clear()
-    worksheet.update([df.columns.values.tolist()] + df.values.tolist())
-    st.info("日付順にソートしました！")
+        df = df.sort_values(by="日付")
+        worksheet.clear()
+        worksheet.update([df.columns.values.tolist()] + df.values.tolist())
+        st.info("日付順にソートしました！")
+
 
