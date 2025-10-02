@@ -1,12 +1,16 @@
+# ================== streamlit_app.py（このまま全文コピペ）==================
 import streamlit as st
 from datetime import date, datetime
 import pandas as pd
 from google.oauth2.service_account import Credentials
 import gspread
 from gspread.exceptions import APIError, SpreadsheetNotFound, WorksheetNotFound
+from gspread.utils import rowcol_to_a1
 
-# ====== 設定 ======
+# -------- 0) 環境設定 --------
 WORKSHEET_NAME = "シート1"
+DATE_COL_NAME = "日付"   # ← 日付列の見出し名（B1が「日付」ならこのままでOK）
+
 SCOPE = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive",
@@ -15,134 +19,125 @@ creds = Credentials.from_service_account_info(
     st.secrets["google_service_account"], scopes=SCOPE
 )
 client = gspread.authorize(creds)
-SHEET_URL = st.secrets.get("SHEET_URL", None)
-SHEET_KEY = st.secrets.get("SHEET_KEY", None)
+SHEET_URL = st.secrets.get("SHEET_URL")
+SHEET_KEY = st.secrets.get("SHEET_KEY")
 
-# ====== シート接続 ======
+# -------- 1) シート接続 --------
 try:
-    sh = client.open_by_url(SHEET_URL) if SHEET_URL else (
-        client.open_by_key(SHEET_KEY) if SHEET_KEY else client.open("soccer_training")
-    )
+    if SHEET_URL:
+        sh = client.open_by_url(SHEET_URL)
+    elif SHEET_KEY:
+        sh = client.open_by_key(SHEET_KEY)
+    else:
+        sh = client.open("soccer_training")  # 最終手段
     try:
         ws = sh.worksheet(WORKSHEET_NAME)
     except WorksheetNotFound:
         ws = sh.get_worksheet(0)
-
     headers = ws.row_values(1)
     if not headers:
-        headers = ["日付", "メモ"]  # 初期化
+        headers = [DATE_COL_NAME, "メモ"]
         ws.insert_row(headers, 1)
 except SpreadsheetNotFound:
-    st.error("スプレッドシートが見つかりません。secrets に SHEET_URL か SHEET_KEY を設定してください。")
+    st.error("スプレッドシートが見つかりません。.streamlit/secrets.toml に SHEET_URL か SHEET_KEY を入れてください。")
     st.stop()
 except APIError:
-    svc_email = st.secrets["google_service_account"].get("client_email", "(不明)")
-    st.error(
-        "シートにアクセスできません。\n"
-        f"・{svc_email} をスプレッドシートの編集者に追加\n"
-        "・Sheets API / Drive API を有効化\n"
-        "・.streamlit/secrets.toml に SHEET_URL か SHEET_KEY を設定\n"
-    )
+    svc = st.secrets["google_service_account"].get("client_email", "(不明)")
+    st.error(f"アクセスできません。シートを **{svc}** に“編集者”で共有、Sheets/Drive API有効化、SHEET_URL/KEY設定を確認。")
     st.stop()
 
-# ====== ユーティリティ ======
-def ensure_state(defaults: dict):
-    for k, v in defaults.items():
+# -------- 2) 日付列の位置確認 --------
+if DATE_COL_NAME not in headers:
+    st.error(f"ヘッダーに『{DATE_COL_NAME}』がありません。日付の列名をコード先頭の DATE_COL_NAME に合わせてください。")
+    st.stop()
+date_col_idx = headers.index(DATE_COL_NAME) + 1  # 1始まり
+
+# -------- 3) セッション初期化 --------
+def ensure_state(d: dict):
+    for k, v in d.items():
         if k not in st.session_state:
             st.session_state[k] = v
 
-def to_num_or_blank(s: str):
+defaults = {f"form_{DATE_COL_NAME}": date.today()}
+for col in headers:
+    if col != DATE_COL_NAME:
+        defaults[f"form_{col}"] = ""
+ensure_state(defaults)
+
+# -------- 4) UI（ヘッダーに自動追従）--------
+st.title("サッカー特訓入力")
+with st.form("入力フォーム"):
+    for col in headers:
+        key = f"form_{col}"
+        if col == DATE_COL_NAME:
+            st.date_input(col, key=key)
+        elif col == "メモ":
+            st.text_input(col, key=key, placeholder="任意")
+        else:
+            st.text_input(col, key=key, placeholder="空でもOK（数字は半角推奨）")
+    submitted = st.form_submit_button("保存")
+
+# -------- 5) 保存（同日付は上書き／なければ追加）--------
+def _to_cell_value(s: str):
     s = (s or "").strip()
     if s == "":
         return ""
     try:
-        # 整数っぽければint、そうでなければfloat
         f = float(s)
         return int(f) if f.is_integer() else f
     except ValueError:
-        return s  # 数字でなければそのまま文字列
+        return s
 
-# ====== セッション初期値（列に合わせて動的に作る） ======
-# 既存シートの列を尊重：日付/メモ以外は「空文字（未入力）」で始める
-defaults = {"form_日付": date.today(), "form_メモ": ""}
-for col in headers:
-    if col in ("日付", "メモ"):
-        continue
-    defaults[f"form_{col}"] = ""  # 数値列でも“空”スタート（0を入れない）
-ensure_state(defaults)
-
-# ====== UI ======
-st.title("サッカー特訓入力")
-
-with st.form("入力フォーム"):
-    st.date_input("日付", key="form_日付")
-    # 列順通りにフォームを並べる（見出しに完全追従）
-    for col in headers:
-        if col == "日付":
-            continue
-        elif col == "メモ":
-            st.text_input("メモ", key="form_メモ", placeholder="任意")
-        else:
-            # 数値でも“空を許す”ため text_input を使う（0量産を防止）
-            st.text_input(col, key=f"form_{col}", placeholder="数値は空でもOK")
-    submitted = st.form_submit_button("保存")
-
-# ====== 保存（同じ日付は上書き、なければ追加） ======
 if submitted:
-    dt: date = st.session_state["form_日付"]
-    date_str = dt.strftime("%Y/%m/%d")  # シートの「日付」表示に合わせる
+    # 1) キー作成
+    dt = st.session_state[f"form_{DATE_COL_NAME}"]      # datetime.date
+    date_str = dt.strftime("%Y/%m/%d")                  # 表示形式を統一
 
-    # 既存日付行を探索（1列目が「日付」前提）
-    all_dates = ws.col_values(1)[1:]  # ヘッダー除外
+    # 2) 既存検索（“日付列”で探す）
+    col_vals = ws.col_values(date_col_idx)[1:]          # 見出し除外
     row_index = None
-    for i, v in enumerate(all_dates, start=2):
+    for i, v in enumerate(col_vals, start=2):
         if str(v).strip() == date_str:
             row_index = i
             break
 
-    # 行データを見出し順で組み立て
+    # 3) 行データを見出し順で構築
     row = []
     for col in headers:
-        if col == "日付":
+        if col == DATE_COL_NAME:
             row.append(date_str)
-        elif col == "メモ":
-            row.append(st.session_state["form_メモ"])
         else:
-            row.append(to_num_or_blank(st.session_state.get(f"form_{col}", "")))
+            row.append(_to_cell_value(st.session_state.get(f"form_{col}", "")))
 
+    # 4) 更新 or 追加
+    end_cell = rowcol_to_a1(row_index if row_index else 1, len(headers))
+    rng = f"A{row_index}:{end_cell}" if row_index else None
     if row_index:
-        ws.update(f"A{row_index}:{gspread.utils.rowcol_to_a1(row_index, len(headers)).split(':')[1]}", [row])
+        ws.update(rng, [row])
     else:
         ws.append_row(row, value_input_option="USER_ENTERED")
 
-    # 入力欄クリア（0は入れない）
-    st.session_state["form_日付"] = date.today()
-    st.session_state["form_メモ"] = ""
+    # 5) 入力欄クリア
+    st.session_state[f"form_{DATE_COL_NAME}"] = date.today()
     for col in headers:
-        if col not in ("日付", "メモ"):
+        if col != DATE_COL_NAME:
             st.session_state[f"form_{col}"] = ""
     st.success("保存しました。")
 
-# ====== 一覧（「日付」で並べ替え） ======
+# -------- 6) 一覧（任意／邪魔なら消してOK）--------
 try:
     data = ws.get_all_values()
     if len(data) >= 2:
         df = pd.DataFrame(data[1:], columns=data[0])
-
-        if "日付" in df.columns:
-            # パースできるものだけ日付にしてソート
-            def _parse_dt(s):
+        if DATE_COL_NAME in df.columns:
+            def _parse(s):
                 try:
                     return datetime.strptime(s, "%Y/%m/%d")
                 except Exception:
                     return None
-            df["_dt"] = df["日付"].apply(_parse_dt)
+            df["_dt"] = df[DATE_COL_NAME].apply(_parse)
             df = df.sort_values("_dt", na_position="last").drop(columns=["_dt"]).reset_index(drop=True)
-
         st.dataframe(df, use_container_width=True)
 except Exception:
     pass
-
-
-
-
+# ===================================================================
