@@ -114,7 +114,7 @@ if st.button("読み込み",key="load_button"):
                 st.session_state[col] = ""
 
 # --- フォーム入力 ---
-with st.form("training_form"):
+with st.form("training_form_v2"):
     for col in headers:
         if col == "日付":
             continue
@@ -198,6 +198,7 @@ worksheet.clear()
 worksheet.update([df.columns.values.tolist()] + df.drop(columns=["日付_dt"]).astype(str).values.tolist())
 
 st.info("✅ 日付順にソートしました！")
+
 
 
 
