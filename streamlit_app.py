@@ -1,15 +1,26 @@
 import streamlit as st
 import pandas as pd
+import gspread
 from datetime import date
+from oauth2client.service_account import ServiceAccountCredentials
 
-# ====== ヘッダー定義 ======
-headers = ["日付", "年齢", "メモ"]  # 必要に応じて他の項目も追加
+# ====== Google Sheets認証・接続 ======
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+client = gspread.authorize(creds)
 
-# ====== Google Sheets 読み込み ======
+# スプレッドシートとワークシートを指定
+SHEET_NAME = "シート1"
+WORKSHEET_NAME = "シート1"
+worksheet = client.open(SHEET_NAME).worksheet(WORKSHEET_NAME)
+
+# ====== ヘッダーを定義（シートと合わせて） ======
+headers = ["日付", "年齢", "メモ"]  # 必要に応じて増やしてOK！
+
+# ====== データ読み込みと日付整形 ======
 data = worksheet.get_all_records()
 df = pd.DataFrame(data)
 
-# 日付を datetime に変換（文字列で保存されていてもOKにする）
 if not df.empty:
     df["日付"] = pd.to_datetime(df["日付"], errors="coerce")
     dates = df["日付"].dt.strftime("%Y-%m-%d").tolist()
@@ -40,11 +51,10 @@ if submitted:
     日付キー = st.session_state["日付"]
     日付文字列 = 日付キー.strftime("%Y-%m-%d")
 
-    # 1行分のデータ作成
     row_data = [日付文字列] + [st.session_state[col] for col in headers if col != "日付"]
 
     if 日付文字列 in dates:
-        row_index = dates.index(日付文字列) + 2  # ヘッダー行があるので +2
+        row_index = dates.index(日付文字列) + 2  # +2 = ヘッダー行 + 1-index
         worksheet.update(
             f"A{row_index}:{chr(65 + len(headers) - 1)}{row_index}",
             [row_data]
@@ -59,7 +69,7 @@ if submitted:
         if col != "日付":
             st.session_state[col] = "" if isinstance(st.session_state[col], str) else 0
 
-    # ソート処理
+    # データ再取得＋日付ソート
     data = worksheet.get_all_records()
     df = pd.DataFrame(data)
 
@@ -69,16 +79,6 @@ if submitted:
         worksheet.clear()
         worksheet.update([df.columns.values.tolist()] + df.values.tolist())
         st.info("日付順にソートしました！")
-
-
-
-
-
-
-
-
-
-
 
 
 
