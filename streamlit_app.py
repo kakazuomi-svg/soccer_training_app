@@ -100,7 +100,7 @@ dates = [normalize_date(d) for d in dates_raw]
 # ----------------------------------------------
 
 # 読み込みボタン処理
-if st.button("読み込み"key="load_button"):
+if st.button("読み込み",key="load_button"):
     if 日付キー in dates:
         row_index = dates.index(日付キー) + 1
         existing = worksheet.row_values(row_index)
@@ -198,6 +198,7 @@ worksheet.clear()
 worksheet.update([df.columns.values.tolist()] + df.drop(columns=["日付_dt"]).astype(str).values.tolist())
 
 st.info("✅ 日付順にソートしました！")
+
 
 
 
