@@ -122,21 +122,28 @@ rows = raw_data[1:]
 expected_cols = len(headers)
 rows = [r + [""] * (expected_cols - len(r)) for r in rows]
 
-# DataFrame化
+# DataFrame化（rows: 2次元配列, headers: 1行目）
 df = pd.DataFrame(rows, columns=headers)
 
-# 日付列が数字っぽいか確認し、int化
-df = df[df["日付"].astype(str).str.strip().str.isdigit()]
-df["日付"] = df["日付"].astype(int)
+# 日付列を datetime に変換（形式が2種類混在しても対応）
+df["日付_dt"] = pd.to_datetime(df["日付"], errors="coerce", format="%Y/%m/%d")
+df["日付_dt"] = df["日付_dt"].fillna(pd.to_datetime(df["日付"], errors="coerce", format="%Y%m%d"))
 
-# 日付で昇順ソート
-df = df.sort_values(by="日付")
+# NaT（変換失敗）を除外
+df = df[df["日付_dt"].notna()]
 
-# 書き戻し（すべて文字列化）
+# ソート
+df = df.sort_values(by="日付_dt")
+
+# 「日付」列を統一フォーマットに変換して再保存
+df["日付"] = df["日付_dt"].dt.strftime("%Y/%m/%d")
+
+# 書き戻し
 worksheet.clear()
-worksheet.update([df.columns.values.tolist()] + df.astype(str).values.tolist())
+worksheet.update([df.columns.values.tolist()] + df.drop(columns=["日付_dt"]).astype(str).values.tolist())
 
 st.info("✅ 日付順にソートしました！")
+
 
 
 
