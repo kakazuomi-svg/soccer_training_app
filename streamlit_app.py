@@ -74,7 +74,12 @@ with st.form("training_form"):
 
         # 文字列
         elif col == "メモ":
-            st.text_input(col, key=col, value=st.session_state.get(col, ""))
+            # 事前にセッションステートに値を入れておく（初期化）
+        if col not in st.session_state:
+            st.session_state[col] = ""
+
+# keyだけ渡す
+st.text_input(col, key=col)
 
     submitted = st.form_submit_button("保存")
 
@@ -109,6 +114,7 @@ if submitted:
         worksheet.clear()
         worksheet.update([df.columns.values.tolist()] + df.values.tolist())
         st.info("日付順にソートしました！")
+
 
 
 
