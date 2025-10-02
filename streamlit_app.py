@@ -103,34 +103,30 @@ if "initialized" not in st.session_state:
             st.session_state[col] = ""
     st.session_state["initialized"] = True
 
-    # ソート
+# ソート
 raw_data = worksheet.get_all_values()
+headers = raw_data[0]
+rows = raw_data[1:]
 
-if not raw_data or len(raw_data) < 2:
-    st.warning("ソートするデータがありません")
-else:
-    headers = raw_data[0]
-    rows = raw_data[1:]
+# 行数補完
+expected_cols = len(headers)
+rows = [r + [""] * (expected_cols - len(r)) for r in rows]
 
-    # 列数を補完（万一の不揃い対応）
-    expected_cols = len(headers)
-    rows = [r + [""] * (expected_cols - len(r)) for r in rows]
+# DataFrame化
+df = pd.DataFrame(rows, columns=headers)
 
-    # DataFrame化
-    df = pd.DataFrame(rows, columns=headers)
+# 日付列が数字っぽいか確認し、int化
+df = df[df["日付"].astype(str).str.strip().str.isdigit()]
+df["日付"] = df["日付"].astype(int)
 
-    # 日付列を数値に変換してソート
-    df["日付"] = df["日付"].astype(int)
-    df = df.sort_values(by="日付")
+# 日付で昇順ソート
+df = df.sort_values(by="日付")
 
-    # 👇ここでアプリ内のソート結果を表示
-    st.write("✅ アプリ内ソート結果（先頭5件）", df.head())
+# 書き戻し（すべて文字列化）
+worksheet.clear()
+worksheet.update([df.columns.values.tolist()] + df.astype(str).values.tolist())
 
-    # 書き戻し
-    worksheet.clear()
-    worksheet.update([df.columns.values.tolist()] + df.values.tolist())
-
-    st.info("日付順にソートしました！")
+st.info("✅ 日付順にソートしました！")
 
 
 
