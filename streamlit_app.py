@@ -113,40 +113,39 @@ if "initialized" not in st.session_state:
             st.session_state[col] = ""
     st.session_state["initialized"] = True
 
-# ソート
+# --- ソート ---
 raw_data = worksheet.get_all_values()
 headers = raw_data[0]
 rows = raw_data[1:]
 
-# 行数補完
+# 行の長さを揃える（短い行に空欄追加）
 expected_cols = len(headers)
 rows = [r + [""] * (expected_cols - len(r)) for r in rows]
 
-# DataFrame化（rows: 2次元配列, headers: 1行目）
+# DataFrame化
 df = pd.DataFrame(rows, columns=headers)
 
-# 日付列を datetime に変換（形式が2種類混在しても対応）
+# 日付列の前処理（全角スペースなど除去）
+df["日付"] = df["日付"].astype(str).str.strip()
+
+# 日付列を datetime に変換（2パターン試す）
 df["日付_dt"] = pd.to_datetime(df["日付"], errors="coerce", format="%Y/%m/%d")
 df["日付_dt"] = df["日付_dt"].fillna(pd.to_datetime(df["日付"], errors="coerce", format="%Y%m%d"))
 
-# NaT（変換失敗）を除外
+# NaT（変換できなかった行）を除外
 df = df[df["日付_dt"].notna()]
 
 # ソート
 df = df.sort_values(by="日付_dt")
 
-# 「日付」列を統一フォーマットに変換して再保存
+# 日付列を統一フォーマットに変換
 df["日付"] = df["日付_dt"].dt.strftime("%Y/%m/%d")
 
-# 書き戻し
+# 書き戻し（補助列は除外、すべて文字列化）
 worksheet.clear()
 worksheet.update([df.columns.values.tolist()] + df.drop(columns=["日付_dt"]).astype(str).values.tolist())
 
 st.info("✅ 日付順にソートしました！")
-
-
-
-
 
 
 
