@@ -31,7 +31,7 @@ headers = worksheet.row_values(1)
 
 # 日付入力
 日付 = st.date_input("日付を選んでください", value=date.today())
-日付キー = 日付.strftime("%Y%m%d")
+日付キー = 日付.strftime("YYYYMMDD")
 dates = worksheet.col_values(1)
 
 # 読み込みボタン
@@ -108,3 +108,4 @@ if submitted:
         worksheet.clear()
         worksheet.update([df.columns.values.tolist()] + df.values.tolist())
         st.info("日付順にソートしました！")
+
