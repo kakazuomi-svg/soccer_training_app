@@ -102,13 +102,31 @@ if submitted:
             st.session_state[col] = ""
 
     # ソート
-    data = worksheet.get_all_records()
-    df = pd.DataFrame(data)
-    if not df.empty:
-        df = df.sort_values(by="日付")
-        worksheet.clear()
-        worksheet.update([df.columns.values.tolist()] + df.values.tolist())
-        st.info("日付順にソートしました！")
+raw_data = worksheet.get_all_values()
+
+if not raw_data or len(raw_data) < 2:
+    st.warning("ソートするデータがありません")
+else:
+    headers = raw_data[0]
+    rows = raw_data[1:]
+
+    # 列数を補完（万一の不揃い対応）
+    expected_cols = len(headers)
+    rows = [r + [""] * (expected_cols - len(r)) for r in rows]
+
+    # DataFrame化
+    df = pd.DataFrame(rows, columns=headers)
+
+    # 日付列を数値に変換してソート
+    df["日付"] = df["日付"].astype(int)
+    df = df.sort_values(by="日付")
+
+    # 書き戻し
+    worksheet.clear()
+    worksheet.update([df.columns.values.tolist()] + df.values.tolist())
+
+    st.info("日付順にソートしました！")
+
 
 
 
