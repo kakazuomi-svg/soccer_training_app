@@ -120,16 +120,16 @@ with st.form("training_form_v2"):
             continue
 
         # 整数型
-     if col in ["年齢", "リフティングレベル"]:
-        default_val = safe_int(st.session_state.get(col, 0))
-        st.number_input(
-            label=col,
-            min_value=0,
-            step=1,
-            format="%d",
-            value=default_val,
-            key=col
-        )
+        if col in ["年齢", "リフティングレベル"]:
+            default_val = safe_int(st.session_state.get(col, 0))
+            st.number_input(
+                label=col,
+                min_value=0,
+                step=1,
+                format="%d",
+                value=default_val,
+                key=col
+            )
 
 
         # 省略…
@@ -218,6 +218,7 @@ worksheet.clear()
 worksheet.update([df.columns.values.tolist()] + df.drop(columns=["日付_dt"]).astype(str).values.tolist())
 
 st.info("✅ 日付順にソートしました！")
+
 
 
 
