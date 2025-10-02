@@ -86,10 +86,55 @@ with st.form("training_form"):
 
 from datetime import datetime
 
+# ---------------- ①ここを追加！ ----------------
+# Googleスプレッドシートから日付列を取得して正規化
+dates_raw = worksheet.col_values(1)
+
+def normalize_date(d):
+    try:
+        return datetime.strptime(str(d).strip(), "%Y/%m/%d").strftime("%Y%m%d")
+    except:
+        return str(d).strip()
+
+dates = [normalize_date(d) for d in dates_raw]
+# ----------------------------------------------
+
+# 読み込みボタン処理
+if st.button("読み込み"):
+    if 日付キー in dates:
+        row_index = dates.index(日付キー) + 1
+        existing = worksheet.row_values(row_index)
+        st.info(f"{日付キー} のデータを読み込みました（編集モード）")
+        for i, col in enumerate(headers[1:], start=1):  # B列以降
+            st.session_state[col] = existing[i] if i < len(existing) else ""
+    else:
+        st.info(f"{日付キー} は未登録です（新規入力モード）")
+        for col in headers:
+            if col != "日付":
+                st.session_state[col] = ""
+
+# --- フォーム入力 ---
+with st.form("training_form"):
+    for col in headers:
+        if col == "日付":
+            continue
+
+        # 整数型
+        if col in ["年齢", "リフティングレベル"]:
+            st.session_state[col] = safe_int(st.session_state.get(col, ""))
+            st.number_input(
+                col, key=col, step=1, format="%d",
+                value=st.session_state[col]
+            )
+        # 省略…
+
+    submitted = st.form_submit_button("保存")
+
+# ---------------- ②保存処理はこのままでOK！ ----------------
 if submitted:
     try:
         日付_dt = datetime.strptime(str(日付キー), "%Y%m%d")
-        日付_str = 日付_dt.strftime("%Y/%m/%d")  # ←★ここ重要！！
+        日付_str = 日付_dt.strftime("%Y/%m/%d")  # ←保存形式はそのままでOK
 
         row_data = [日付_str] + [st.session_state[col] for col in headers if col != "日付"]
 
@@ -105,8 +150,13 @@ if submitted:
 
         st.write("✅ 書き込んだデータ:", row_data)
 
+        # --- 保存後に再読み込みしてもいい（必要なら）---
+        # dates_raw = worksheet.col_values(1)
+        # dates = [normalize_date(d) for d in dates_raw]
+
     except Exception as e:
         st.error(f"❌ 保存できませんでした：{e}")
+
 
  # 入力欄リセット
 if "initialized" not in st.session_state:
@@ -148,6 +198,7 @@ worksheet.clear()
 worksheet.update([df.columns.values.tolist()] + df.drop(columns=["日付_dt"]).astype(str).values.tolist())
 
 st.info("✅ 日付順にソートしました！")
+
 
 
 
