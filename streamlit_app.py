@@ -121,11 +121,15 @@ else:
     df["日付"] = df["日付"].astype(int)
     df = df.sort_values(by="日付")
 
+    # 👇ここでアプリ内のソート結果を表示
+st.write("✅ アプリ内ソート結果（先頭5件）", df.head())
+
     # 書き戻し
     worksheet.clear()
     worksheet.update([df.columns.values.tolist()] + df.values.tolist())
 
     st.info("日付順にソートしました！")
+
 
 
 
