@@ -140,7 +140,7 @@ with st.form("training_form_v2"):
 if submitted:
     try:
         日付_dt = datetime.strptime(str(日付キー), "%Y%m%d")
-        日付_str = 日付_dt.strftime("%Y/%m/%d")  # ←保存形式はそのままでOK
+        日付_str = str(日付キー)
 
         row_data = [日付_str] + [st.session_state[col] for col in headers if col != "日付"]
 
@@ -204,6 +204,7 @@ worksheet.clear()
 worksheet.update([df.columns.values.tolist()] + df.drop(columns=["日付_dt"]).astype(str).values.tolist())
 
 st.info("✅ 日付順にソートしました！")
+
 
 
 
