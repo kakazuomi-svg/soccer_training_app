@@ -73,8 +73,8 @@ with st.form("training_form"):
             )
 
  # 文字列
-    elif col == "メモ":
-        # セッションステートに初期値をセット
+        elif col == "メモ":
+            # セッションステートに初期値をセット
         if col not in st.session_state:
             st.session_state[col] = ""
 
@@ -114,6 +114,7 @@ if submitted:
         worksheet.clear()
         worksheet.update([df.columns.values.tolist()] + df.values.tolist())
         st.info("日付順にソートしました！")
+
 
 
 
