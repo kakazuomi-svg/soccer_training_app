@@ -84,23 +84,27 @@ with st.form("training_form"):
 
 from datetime import datetime
 
-# 保存処理
 if submitted:
-    # ✅ 日付キー（int）を datetime に変換 → Google Sheetsが日付型で認識してくれる
-    日付_dt = datetime.strptime(str(日付キー), "%Y%m%d")
+    try:
+        日付_dt = datetime.strptime(str(日付キー), "%Y%m%d")
+        日付_str = 日付_dt.strftime("%Y/%m/%d")  # ←★ここ重要！！
 
-    # ✅ 先頭に datetime を入れて保存
-    row_data = [日付_dt] + [st.session_state[col] for col in headers if col != "日付"]
+        row_data = [日付_str] + [st.session_state[col] for col in headers if col != "日付"]
 
-    if 日付キー in dates:
-        row_index = dates.index(日付キー) + 1
-        worksheet.update(
-            f"A{row_index}:{chr(65+len(headers)-1)}{row_index}", [row_data]
-        )
-        st.success(f"{日付キー} のデータを上書きしました！")
-    else:
-        worksheet.append_row(row_data)
-        st.success(f"{日付キー} のデータを追加しました！")
+        if 日付キー in dates:
+            row_index = dates.index(日付キー) + 1
+            worksheet.update(
+                f"A{row_index}:{chr(65+len(headers)-1)}{row_index}", [row_data]
+            )
+            st.success(f"{日付_str} のデータを上書きしました！")
+        else:
+            worksheet.append_row(row_data)
+            st.success(f"{日付_str} のデータを追加しました！")
+
+        st.write("✅ 書き込んだデータ:", row_data)
+
+    except Exception as e:
+        st.error(f"❌ 保存できませんでした：{e}")
 
  # 入力欄リセット
 if "initialized" not in st.session_state:
@@ -133,6 +137,7 @@ worksheet.clear()
 worksheet.update([df.columns.values.tolist()] + df.astype(str).values.tolist())
 
 st.info("✅ 日付順にソートしました！")
+
 
 
 
