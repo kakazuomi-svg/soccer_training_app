@@ -171,6 +171,20 @@ if "initialized" not in st.session_state:
             st.session_state[col] = ""
     st.session_state["initialized"] = True
 
+# 認証・スプレッドシート接続
+worksheet = client.open("soccer_training").worksheet("シート1")
+
+# データ取得
+records = worksheet.get_all_records()
+df = pd.DataFrame(records)
+
+# 日付列を YYYYMMDD → datetime に変換
+df["日付"] = pd.to_datetime(df["日付"].astype(str), format="%Y%m%d")
+
+# フィルタやソートもこれで安心
+df = df.sort_values("日付")
+
+
 # --- ソート ---
 raw_data = worksheet.get_all_values()
 headers = raw_data[0]
@@ -204,6 +218,7 @@ worksheet.clear()
 worksheet.update([df.columns.values.tolist()] + df.drop(columns=["日付_dt"]).astype(str).values.tolist())
 
 st.info("✅ 日付順にソートしました！")
+
 
 
 
