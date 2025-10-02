@@ -96,10 +96,10 @@ if submitted:
         worksheet.append_row(row_data)
         st.success(f"{日付キー} のデータを追加しました！")
 
-    # 入力欄リセット
-    for col in headers:
-        if col != "日付":
-            st.session_state[col] = ""
+ # 入力欄リセット
+for col in headers:
+    if col and col.strip() and col != "日付":
+        st.session_state[col] = ""
 
     # ソート
 raw_data = worksheet.get_all_values()
@@ -129,6 +129,7 @@ else:
     worksheet.update([df.columns.values.tolist()] + df.values.tolist())
 
     st.info("日付順にソートしました！")
+
 
 
 
