@@ -97,8 +97,8 @@ if submitted:
 
     # 入力欄リセット
     for col in headers:
-        if col != "日付":
-            st.session_state[col] = ""
+         if col in st.session_state:
+            st.session_state[col] = "" if isinstance(st.session_state[col], str) else 0
 
     # ソート
     data = worksheet.get_all_records()
@@ -108,5 +108,6 @@ if submitted:
         worksheet.clear()
         worksheet.update([df.columns.values.tolist()] + df.values.tolist())
         st.info("日付順にソートしました！")
+
 
 
