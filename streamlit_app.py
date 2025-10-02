@@ -30,18 +30,20 @@ worksheet = client.open("soccer_training").worksheet("シート1")
 headers = worksheet.row_values(1)
 
 
-# 日付入力
 日付 = st.date_input("日付を選んでください", value=date.today())
-日付キー = int(日付.strftime("%Y%m%d"))  # ← ここを整数にする
-dates = worksheet.col_values(1)
+日付キー = 日付.strftime("%Y%m%d")
+dates = [str(d).strip() for d in worksheet.col_values(1)]
 
-# 読み込みボタン
+st.write("🔍 日付キー:", 日付キー)
+st.write("📅 dates:", dates)
+st.write("✅ 含まれてる？", 日付キー in dates)
+
 if st.button("読み込み"):
     if 日付キー in dates:
         row_index = dates.index(日付キー) + 1
         existing = worksheet.row_values(row_index)
         st.info(f"{日付キー} のデータを読み込みました（編集モード）")
-        for i, col in enumerate(headers[1:], start=1):  # B列以降
+        for i, col in enumerate(headers[1:], start=1):
             st.session_state[col] = existing[i] if i < len(existing) else ""
     else:
         st.info(f"{日付キー} は未登録です（新規入力モード）")
@@ -146,6 +148,7 @@ worksheet.clear()
 worksheet.update([df.columns.values.tolist()] + df.drop(columns=["日付_dt"]).astype(str).values.tolist())
 
 st.info("✅ 日付順にソートしました！")
+
 
 
 
