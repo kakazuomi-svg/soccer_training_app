@@ -1,10 +1,11 @@
 import streamlit as st
-from datetime import date, datetime
+from datetime import date
 import pandas as pd
 from google.oauth2.service_account import Credentials
 import gspread
+from gspread.exceptions import APIError, SpreadsheetNotFound, WorksheetNotFound
 
-# --- 安全な数値変換用の関数 ---
+# --- 安全な数値変換用の関数（既存の良いところは残す） ---
 def safe_int(val, default=0):
     try:
         return int(val)
@@ -17,20 +18,70 @@ def safe_float(val, default=0.0):
     except (ValueError, TypeError):
         return default
 
-# --- Google認証 ---
-SCOPE = ["https://spreadsheets.google.com/feeds",
-         "https://www.googleapis.com/auth/drive"]
+# --- Google認証（やばい所だけ修正） ---
+# 古い "feeds" はやめて、公式推奨のスコープに
+SCOPE = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive",
+]
+
+# st.secrets の "google_service_account" はそのまま利用（良い）
 creds = Credentials.from_service_account_info(
     st.secrets["google_service_account"], scopes=SCOPE
 )
 client = gspread.authorize(creds)
-worksheet = client.open("soccer_training").worksheet("シート1")
 
-# ヘッダー取得
-headers = worksheet.row_values(1)
+# --- シートの開き方を「名前」→「キー/URL」へ（やばい所の修正） ---
+# 1) .streamlit/secrets.toml に SHEET_URL または SHEET_KEY を入れておく
+# 例：
+# [google_service_account] ...（省略）...
+# SHEET_URL = "https://docs.google.com/spreadsheets/d/xxxxxxxxxxxxxxxxxxxxxxxxxxxx/edit"
+# または
+# SHEET_KEY = "xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+SHEET_URL = st.secrets.get("SHEET_URL", None)
+SHEET_KEY = st.secrets.get("SHEET_KEY", None)
 
-# 日付選択
+# 2) 開く（URL優先 → KEY）
+try:
+    if SHEET_URL:
+        sh = client.open_by_url(SHEET_URL)
+    elif SHEET_KEY:
+        sh = client.open_by_key(SHEET_KEY)
+    else:
+        # 最悪の最悪にだけ名前で開く（非推奨）
+        sh = client.open("soccer_training")
+
+    # ここも名前参照はそのままでも良いが、将来に備えて存在チェック
+    try:
+        worksheet = sh.worksheet("シート1")
+    except WorksheetNotFound:
+        # もし英語名等なら、先頭シートにフォールバック
+        worksheet = sh.get_worksheet(0)
+
+    # ヘッダー取得（良いところは残す）
+    headers = worksheet.row_values(1)
+
+except SpreadsheetNotFound:
+    st.error("スプレッドシートが見つかりませんでした。SHEET_URL または SHEET_KEY を secrets に設定してください。")
+    st.stop()
+except APIError as e:
+    # もっとも多いのは「シェア権限なし」
+    svc_email = st.secrets["google_service_account"].get("client_email", "(不明)")
+    st.error(
+        "Google API へのアクセスに失敗しました。以下を確認してください：\n"
+        "1) スプレッドシートを **サービスアカウントのメール** に“編集者”で共有\n"
+        f"   - 共有先メール: **{svc_email}**\n"
+        "2) secrets.toml に **SHEET_URL** または **SHEET_KEY** を設定\n"
+        "3) GCP で Sheets API / Drive API を有効化\n"
+        "4) スプレッドシート自体が削除・アーカイブされていない\n"
+        "\n詳細な例外はログに出ています（Streamlit Cloudの Manage app → Logs）。"
+    )
+    st.stop()
+
+# --- 以降は既存のUI/ロジックを活かす ---
 日付 = st.date_input("日付を選んでください", value=date.today())
+# ここから下は、あなたが作ってきたフォーム・保存・編集モード等をそのまま続けてOK
+
 日付キー = 日付.strftime("%Y%m%d")
 
 # Googleスプレッドシートの日付列を正規化
@@ -138,6 +189,7 @@ df["日付"] = df["日付_dt"].dt.strftime("%Y/%m/%d")
 worksheet.clear()
 worksheet.update([df.columns.values.tolist()] + df.drop(columns=["日付_dt"]).astype(str).values.tolist())
 st.info("✅ 日付順にソートしました！")
+
 
 
 
