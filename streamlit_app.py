@@ -56,11 +56,8 @@ with st.form("training_form"):
 
         # 整数型
         if col in ["年齢", "リフティングレベル"]:
-            st.session_state[col] = safe_int(st.session_state.get(col, ""))
-            st.number_input(
-                col, key=col, step=1, format="%d",
-                value=st.session_state[col]
-            )
+            st.session_state["年齢"] = 0
+            age = st.number_input("年齢", key="年齢")
 
         # 小数型
         elif col in [
@@ -83,17 +80,21 @@ with st.form("training_form"):
 
 # 保存処理
 if submitted:
-    row_data = [日付キー] + [st.session_state[col] for col in headers if col != "日付"]
+    # 🔽 日付を YYYY-MM-DD 文字列に変換
+    日付文字列 = 日付キー.strftime("%Y-%m-%d") if hasattr(日付キー, "strftime") else str(日付キー)
 
-    if 日付キー in dates:
-        row_index = dates.index(日付キー) + 1
+    # データ行を作成（1列目に日付文字列）
+    row_data = [日付文字列] + [st.session_state[col] for col in headers if col != "日付"]
+
+    if 日付文字列 in dates:
+        row_index = dates.index(日付文字列) + 1
         worksheet.update(
             f"A{row_index}:{chr(65+len(headers)-1)}{row_index}", [row_data]
         )
-        st.success(f"{日付キー} のデータを上書きしました！")
+        st.success(f"{日付文字列} のデータを上書きしました！")
     else:
         worksheet.append_row(row_data)
-        st.success(f"{日付キー} のデータを追加しました！")
+        st.success(f"{日付文字列} のデータを追加しました！")
 
     # 入力欄リセット
     for col in headers:
