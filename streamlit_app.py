@@ -1,100 +1,53 @@
 import streamlit as st
-from datetime import date
 import pandas as pd
-from google.oauth2.service_account import Credentials
-import gspread
+from datetime import date
 
-# --- 安全な数値変換用の関数 ---
-def safe_int(val, default=0):
-    try:
-        return int(val)
-    except (ValueError, TypeError):
-        return default
+# ====== ヘッダー定義 ======
+headers = ["日付", "年齢", "メモ"]  # 必要に応じて他の項目も追加
 
-def safe_float(val, default=0.0):
-    try:
-        return float(val)
-    except (ValueError, TypeError):
-        return default
+# ====== Google Sheets 読み込み ======
+data = worksheet.get_all_records()
+df = pd.DataFrame(data)
 
-# --- Google認証 ---
-SCOPE = ["https://spreadsheets.google.com/feeds",
-         "https://www.googleapis.com/auth/drive"]
-creds = Credentials.from_service_account_info(
-    st.secrets["google_service_account"], scopes=SCOPE
-)
-client = gspread.authorize(creds)
-worksheet = client.open("soccer_training").worksheet("シート1")
+# 日付を datetime に変換（文字列で保存されていてもOKにする）
+if not df.empty:
+    df["日付"] = pd.to_datetime(df["日付"], errors="coerce")
+    dates = df["日付"].dt.strftime("%Y-%m-%d").tolist()
+else:
+    df = pd.DataFrame(columns=headers)
+    dates = []
 
-# ヘッダー取得
-headers = worksheet.row_values(1)
-
-# 日付入力
-日付 = st.date_input("日付を選んでください", value=date.today())
-日付キー = 日付.strftime("%Y%m%d")
-dates = worksheet.col_values(1)
-
-# 読み込みボタン
-if st.button("読み込み"):
-    if 日付キー in dates:
-        row_index = dates.index(日付キー) + 1
-        existing = worksheet.row_values(row_index)
-        st.info(f"{日付キー} のデータを読み込みました（編集モード）")
-        for i, col in enumerate(headers[1:], start=1):  # B列以降
-            st.session_state[col] = existing[i] if i < len(existing) else ""
-    else:
-        st.info(f"{日付キー} は未登録です（新規入力モード）")
-        for col in headers:
-            if col != "日付":
-                st.session_state[col] = ""
-
-# --- フォーム入力 ---
-with st.form("training_form"):
+# ====== 入力フォーム ======
+with st.form("入力フォーム"):
     for col in headers:
         if col == "日付":
-            continue
-
-        # 整数型
-        if col in ["年齢", "リフティングレベル"]:
-            st.session_state["年齢"] = 0
-            age = st.number_input("年齢", key="年齢")
-
-        # 小数型
-        elif col in [
-            "身長", "体重", "4mダッシュ", "50m走", "1.3km",
-            "立ち幅跳び", "握力（右）", "握力（左）",
-            "リフティング時間", "パントキック", "ゴールキック",
-            "ソフトボール投げ", "疲労度"
-        ]:
-            st.session_state[col] = safe_float(st.session_state.get(col, ""))
-            st.number_input(
-                col, key=col, step=0.01, format="%.2f",
-                value=st.session_state[col]
-            )
-
- # 文字列
+            if col not in st.session_state:
+                st.session_state[col] = date.today()
+            st.date_input(col, key=col)
         elif col == "メモ":
-            # セッションステートに初期値をセット
             if col not in st.session_state:
                 st.session_state[col] = ""
-
-        # text_input に value は指定せず、key だけ
-                st.text_input(col, key=col)
+            st.text_input(col, key=col)
+        else:
+            if col not in st.session_state:
+                st.session_state[col] = 0
+            st.number_input(col, key=col)
 
     submitted = st.form_submit_button("保存")
 
-# 保存処理
+# ====== 保存処理 ======
 if submitted:
-    # 🔽 日付を YYYY-MM-DD 文字列に変換
-    日付文字列 = 日付キー.strftime("%Y-%m-%d") if hasattr(日付キー, "strftime") else str(日付キー)
+    日付キー = st.session_state["日付"]
+    日付文字列 = 日付キー.strftime("%Y-%m-%d")
 
-    # データ行を作成（1列目に日付文字列）
+    # 1行分のデータ作成
     row_data = [日付文字列] + [st.session_state[col] for col in headers if col != "日付"]
 
     if 日付文字列 in dates:
-        row_index = dates.index(日付文字列) + 1
+        row_index = dates.index(日付文字列) + 2  # ヘッダー行があるので +2
         worksheet.update(
-            f"A{row_index}:{chr(65+len(headers)-1)}{row_index}", [row_data]
+            f"A{row_index}:{chr(65 + len(headers) - 1)}{row_index}",
+            [row_data]
         )
         st.success(f"{日付文字列} のデータを上書きしました！")
     else:
@@ -104,17 +57,18 @@ if submitted:
     # 入力欄リセット
     for col in headers:
         if col != "日付":
-            st.session_state[col] = ""
+            st.session_state[col] = "" if isinstance(st.session_state[col], str) else 0
 
-    # ソート
+    # ソート処理
     data = worksheet.get_all_records()
     df = pd.DataFrame(data)
+
     if not df.empty:
+        df["日付"] = pd.to_datetime(df["日付"], errors="coerce")
         df = df.sort_values(by="日付")
         worksheet.clear()
         worksheet.update([df.columns.values.tolist()] + df.values.tolist())
         st.info("日付順にソートしました！")
-
 
 
 
