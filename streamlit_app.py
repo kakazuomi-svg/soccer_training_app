@@ -1,5 +1,5 @@
 import streamlit as st
-from datetime import date
+from datetime import date, datetime
 import pandas as pd
 from google.oauth2.service_account import Credentials
 import gspread
@@ -29,27 +29,34 @@ worksheet = client.open("soccer_training").worksheet("シート1")
 # ヘッダー取得
 headers = worksheet.row_values(1)
 
-
+# 日付選択
 日付 = st.date_input("日付を選んでください", value=date.today())
 日付キー = 日付.strftime("%Y%m%d")
-dates = [str(d).strip() for d in worksheet.col_values(1)]
 
-st.write("🔍 日付キー:", 日付キー)
-st.write("📅 dates:", dates)
-st.write("✅ 含まれてる？", 日付キー in dates)
+# Googleスプレッドシートの日付列を正規化
+dates_raw = worksheet.col_values(1)
+def normalize_date(d):
+    try:
+        return datetime.strptime(str(d).strip(), "%Y/%m/%d").strftime("%Y%m%d")
+    except:
+        return str(d).strip()
 
-if st.button("読み込み"):
+dates = [normalize_date(d) for d in dates_raw]
+
+# 読み込みボタン
+if st.button("読み込み", key="load_button"):
     if 日付キー in dates:
         row_index = dates.index(日付キー) + 1
         existing = worksheet.row_values(row_index)
         st.info(f"{日付キー} のデータを読み込みました（編集モード）")
+        # ここだけ修正: session_stateにform_を付ける
         for i, col in enumerate(headers[1:], start=1):
-            st.session_state[col] = existing[i] if i < len(existing) else ""
+            st.session_state[f"form_{col}"] = existing[i] if i < len(existing) else ""
     else:
         st.info(f"{日付キー} は未登録です（新規入力モード）")
         for col in headers:
             if col != "日付":
-                st.session_state[col] = ""
+                st.session_state[f"form_{col}"] = ""
 
 # --- フォーム入力 ---
 with st.form("training_form"):
@@ -57,12 +64,14 @@ with st.form("training_form"):
         if col == "日付":
             continue
 
+        key_name = f"form_{col}"  # ←重複防止
+
         # 整数型
         if col in ["年齢", "リフティングレベル"]:
-            st.session_state[col] = safe_int(st.session_state.get(col, ""))
+            default_val = safe_int(st.session_state.get(key_name, 0))
             st.number_input(
-                col, key=col, step=1, format="%d",
-                value=st.session_state[col]
+                label=col, min_value=0, step=1, format="%d",
+                value=default_val, key=key_name
             )
 
         # 小数型
@@ -72,77 +81,27 @@ with st.form("training_form"):
             "リフティング時間", "パントキック", "ゴールキック",
             "ソフトボール投げ", "疲労度"
         ]:
-            st.session_state[col] = safe_float(st.session_state.get(col, ""))
+            default_val = safe_float(st.session_state.get(key_name, 0.0))
             st.number_input(
-                col, key=col, step=0.01, format="%.2f",
-                value=st.session_state[col]
+                label=col, step=0.01, format="%.2f",
+                value=default_val, key=key_name
             )
 
         # 文字列
         elif col == "メモ":
-            st.text_input(col, key=col, value=st.session_state.get(col, ""))
-
-    submitted = st.form_submit_button("保存")
-
-from datetime import datetime
-
-# ---------------- ①ここを追加！ ----------------
-# Googleスプレッドシートから日付列を取得して正規化
-dates_raw = worksheet.col_values(1)
-
-def normalize_date(d):
-    try:
-        return datetime.strptime(str(d).strip(), "%Y/%m/%d").strftime("%Y%m%d")
-    except:
-        return str(d).strip()
-
-dates = [normalize_date(d) for d in dates_raw]
-# ----------------------------------------------
-
-# 読み込みボタン処理
-if st.button("読み込み",key="load_button"):
-    if 日付キー in dates:
-        row_index = dates.index(日付キー) + 1
-        existing = worksheet.row_values(row_index)
-        st.info(f"{日付キー} のデータを読み込みました（編集モード）")
-        for i, col in enumerate(headers[1:], start=1):  # B列以降
-            st.session_state[col] = existing[i] if i < len(existing) else ""
-    else:
-        st.info(f"{日付キー} は未登録です（新規入力モード）")
-        for col in headers:
-            if col != "日付":
-                st.session_state[col] = ""
-
-# --- フォーム入力 ---
-with st.form("training_form_v2"):
-    for col in headers:
-        if col == "日付":
-            continue
-
-        # 整数型
-        if col in ["年齢", "リフティングレベル"]:
-            default_val = safe_int(st.session_state.get(col, 0))
-            st.number_input(
+            st.text_input(
                 label=col,
-                min_value=0,
-                step=1,
-                format="%d",
-                value=default_val,
-                key=col
+                value=st.session_state.get(key_name, ""),
+                key=key_name
             )
 
-
-        # 省略…
-
     submitted = st.form_submit_button("保存")
 
-# ---------------- ②保存処理はこのままでOK！ ----------------
+# --- 保存処理 ---
 if submitted:
     try:
-        日付_dt = datetime.strptime(str(日付キー), "%Y%m%d")
-        日付_str = str(日付キー)
-
-        row_data = [日付_str] + [st.session_state[col] for col in headers if col != "日付"]
+        日付_str = 日付.strftime("%Y/%m/%d")
+        row_data = [日付_str] + [st.session_state[f"form_{col}"] for col in headers if col != "日付"]
 
         if 日付キー in dates:
             row_index = dates.index(日付キー) + 1
@@ -156,84 +115,29 @@ if submitted:
 
         st.write("✅ 書き込んだデータ:", row_data)
 
-        # --- 保存後に再読み込みしてもいい（必要なら）---
-        # dates_raw = worksheet.col_values(1)
-        # dates = [normalize_date(d) for d in dates_raw]
-
     except Exception as e:
         st.error(f"❌ 保存できませんでした：{e}")
-
-
- # 入力欄リセット
-if "initialized" not in st.session_state:
-    for col in headers:
-        if col and col.strip() and col != "日付":
-            st.session_state[col] = ""
-    st.session_state["initialized"] = True
-
-# 認証・スプレッドシート接続
-worksheet = client.open("soccer_training").worksheet("シート1")
-
-# データ取得
-records = worksheet.get_all_records()
-df = pd.DataFrame(records)
-
-# 日付列を YYYYMMDD → datetime に変換
-df["日付"] = pd.to_datetime(df["日付"].astype(str), format="%Y%m%d")
-
-# フィルタやソートもこれで安心
-df = df.sort_values("日付")
-
 
 # --- ソート ---
 raw_data = worksheet.get_all_values()
 headers = raw_data[0]
 rows = raw_data[1:]
 
-# 行の長さを揃える（短い行に空欄追加）
 expected_cols = len(headers)
 rows = [r + [""] * (expected_cols - len(r)) for r in rows]
 
-# DataFrame化
 df = pd.DataFrame(rows, columns=headers)
-
-# 日付列の前処理（全角スペースなど除去）
 df["日付"] = df["日付"].astype(str).str.strip()
 
-# 日付列を datetime に変換（2パターン試す）
 df["日付_dt"] = pd.to_datetime(df["日付"], errors="coerce", format="%Y/%m/%d")
 df["日付_dt"] = df["日付_dt"].fillna(pd.to_datetime(df["日付"], errors="coerce", format="%Y%m%d"))
-
-# NaT（変換できなかった行）を除外
 df = df[df["日付_dt"].notna()]
-
-# ソート
 df = df.sort_values(by="日付_dt")
-
-# 日付列を統一フォーマットに変換
 df["日付"] = df["日付_dt"].dt.strftime("%Y/%m/%d")
 
-# 書き戻し（補助列は除外、すべて文字列化）
 worksheet.clear()
 worksheet.update([df.columns.values.tolist()] + df.drop(columns=["日付_dt"]).astype(str).values.tolist())
-
 st.info("✅ 日付順にソートしました！")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
