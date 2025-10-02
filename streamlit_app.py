@@ -82,9 +82,15 @@ with st.form("training_form"):
 
     submitted = st.form_submit_button("保存")
 
+from datetime import datetime
+
 # 保存処理
 if submitted:
-    row_data = [日付キー] + [st.session_state[col] for col in headers if col != "日付"]
+    # ✅ 日付キー（int）を datetime に変換 → Google Sheetsが日付型で認識してくれる
+    日付_dt = datetime.strptime(str(日付キー), "%Y%m%d")
+
+    # ✅ 先頭に datetime を入れて保存
+    row_data = [日付_dt] + [st.session_state[col] for col in headers if col != "日付"]
 
     if 日付キー in dates:
         row_index = dates.index(日付キー) + 1
@@ -127,6 +133,7 @@ worksheet.clear()
 worksheet.update([df.columns.values.tolist()] + df.astype(str).values.tolist())
 
 st.info("✅ 日付順にソートしました！")
+
 
 
 
