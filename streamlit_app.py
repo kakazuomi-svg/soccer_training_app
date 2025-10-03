@@ -69,7 +69,6 @@ st.title("サッカー特訓入力（全部文字列モード）")
 with st.form("入力フォーム"):
     for col in headers:
         key = f"form_{col}"
-        # 既定値（session_stateに無ければ今日 or 空）
         default = today_str() if col == DATE_COL_NAME else ""
         current = st.session_state.get(key, default)
 
@@ -81,6 +80,7 @@ with st.form("入力フォーム"):
             st.text_input(col, key=key, value=current, placeholder="空でもOK（数値も文字列で保存）")
 
     submitted = st.form_submit_button("保存")
+
 
 
 # -------- 保存（同日付は上書き／なければ追加）--------
@@ -124,8 +124,7 @@ if submitted:
 
     # 5) 入力欄クリア（文字列でリセット）
     for col in headers:
-        key = f"form_{col}"
-        st.session_state[key] = today_str() if col == DATE_COL_NAME else ""
+    st.session_state.pop(f"form_{col}", None)
     st.success("保存しました。")
 
 # -------- 一覧（文字列ソート：YYYYMMDDならそのまま昇順OK）--------
@@ -141,6 +140,7 @@ try:
 except Exception:
     pass
 # ================================================================
+
 
 
 
