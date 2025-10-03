@@ -124,7 +124,7 @@ if submitted:
 
     # 5) 入力欄クリア（文字列でリセット）
     for col in headers:
-    st.session_state.pop(f"form_{col}", None)
+        st.session_state.pop(f"form_{col}", None)
     st.success("保存しました。")
 
 # -------- 一覧（文字列ソート：YYYYMMDDならそのまま昇順OK）--------
@@ -140,6 +140,7 @@ try:
 except Exception:
     pass
 # ================================================================
+
 
 
 
