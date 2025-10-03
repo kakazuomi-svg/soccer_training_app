@@ -111,11 +111,11 @@ with st.form("入力フォーム"):
 # -------- 保存（同日付は上書き／なければ追加）--------
 if submitted:
     # --- 多重保存ガード（同じキーを連続保存しない） ---
-last_key = st.session_state.get("_last_saved_key")
-pending_key = st.session_state.get(f"form_{DATE_COL_NAME}", "")
-if last_key == pending_key:
-    st.info("同じ日付の保存は直前に完了しています。")
-    submitted = False  # この回は保存をスキップ
+    last_key = st.session_state.get("_last_saved_key")
+    pending_key = st.session_state.get(f"form_{DATE_COL_NAME}", "")
+    if last_key == pending_key:
+        st.info("同じ日付の保存は直前に完了しています。")
+        submitted = False  # この回は保存をスキップ
 
     # 1) キー（DATE_COL_NAME）を正規化
     raw = st.session_state.get(f"form_{DATE_COL_NAME}", "")
@@ -179,6 +179,7 @@ if last_key == pending_key:
     st.session_state["_last_saved_key"] = pending_key
 
     st.success("保存しました。")
+
 
 
 
