@@ -53,6 +53,13 @@ def today_str() -> str:
     d = date.today()
     return f"{d.year:04d}{d.month:02d}{d.day:02d}"
 
+from gspread.utils import rowcol_to_a1  # 先頭のimportに無ければ追加
+
+def _col_end_ref(n_cols: int) -> str:
+    """列数から終端列参照（例: 'Z' や 'AD'）だけを返す。"""
+    return rowcol_to_a1(1, n_cols).rstrip("0123456789")
+
+
 def normalize_date_str(s: str) -> str:
     """日付文字列から数字だけを取り出し、8桁(YYYYMMDD)なら返す。ダメなら空を返す。"""
     digits = "".join(ch for ch in (s or "") if ch.isdigit())
@@ -81,17 +88,6 @@ with st.form("入力フォーム"):
 
     submitted = st.form_submit_button("保存")
 
-
-
-# -------- 保存（同日付は上書き／なければ追加）--------
-if submitted:
-    # 1) キー（DATE_COL_NAME）を正規化
-    raw = st.session_state[f"form_{DATE_COL_NAME}"]
-    date_key = normalize_date_str(raw)
-    date_disp = display_date_str(date_key) 
-    if not date_key:
-        st.error(f"{DATE_COL_NAME} は 8桁の数字（例: {DATE_EXAMPLE} / 2025-07-15 も可）で入力してください。")
-        st.stop()
 
     # 2) 既存検索：DATE_COL_NAME の列で探す
     if DATE_COL_NAME not in headers:
@@ -122,6 +118,12 @@ if submitted:
     else:
         ws.append_row(row, value_input_option="USER_ENTERED")
 
+  # ★ 4.5) 保存直後ソート（ここを追加）
+    ws.sort(
+        (date_col_idx, 'asc'),
+        range=f"A2:{_col_end_ref(len(headers))}"   # ヘッダー除外で全列
+    )
+
     # 5) 入力欄クリア（文字列でリセット）
     for col in headers:
         st.session_state.pop(f"form_{col}", None)
@@ -140,6 +142,7 @@ try:
 except Exception:
     pass
 # ================================================================
+
 
 
 
