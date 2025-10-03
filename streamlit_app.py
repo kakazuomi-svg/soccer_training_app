@@ -128,13 +128,15 @@ if submitted:
         ws.append_row(row, value_input_option="USER_ENTERED")
 
     # 4.5) 保存直後ソート（ヘッダー除外で全列）
+    end_cell = rowcol_to_a1(ws.row_count, len(headers))
     ws.sort(
-        (date_col_idx, 'asc'),
-        range=f"A2:{_col_end_ref(len(headers))}"
-    )
+    (date_col_idx, 'asc'),
+    range=f"A2:{end_cell}"
+    
 
     # 5) 入力欄クリア（popで消す→次回描画でdefaultが入る）
     for col in headers:
         st.session_state.pop(f"form_{col}", None)
 
     st.success("保存しました。")
+
