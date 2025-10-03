@@ -62,25 +62,26 @@ def display_date_str(date_key: str) -> str:
     """YYYYMMDD -> YYYY/MM/DD（常に文字列）"""
     return f"{date_key[0:4]}/{date_key[4:6]}/{date_key[6:8]}"
 
-# -------- セッション初期化（全部テキスト） --------
-for col in headers:
-    key = f"form_{col}"
-    if key not in st.session_state:
-        if col == DATE_COL_NAME:
-            st.session_state[key] = today_str()  # 例: "20251002"
-        else:
-            st.session_state[key] = ""           # それ以外は空文字
+
 
 # -------- UI（見出しに自動追従・全部 text_input）--------
 st.title("サッカー特訓入力（全部文字列モード）")
 with st.form("入力フォーム"):
     for col in headers:
         key = f"form_{col}"
+        # 既定値（session_stateに無ければ今日 or 空）
+        default = today_str() if col == DATE_COL_NAME else ""
+        current = st.session_state.get(key, default)
+
         if col == DATE_COL_NAME:
-            st.text_input(f"{col}（{DATE_EXAMPLE} 形式推奨）", key=key, placeholder=DATE_EXAMPLE)
+            st.text_input(f"{col}（例: 20250715）", key=key, value=current, placeholder="YYYYMMDD")
+        elif col == "メモ":
+            st.text_input(col, key=key, value=current, placeholder="任意")
         else:
-            st.text_input(col, key=key, placeholder="空でもOK（数値も文字列で保存）")
+            st.text_input(col, key=key, value=current, placeholder="空でもOK（数値も文字列で保存）")
+
     submitted = st.form_submit_button("保存")
+
 
 # -------- 保存（同日付は上書き／なければ追加）--------
 if submitted:
@@ -140,5 +141,6 @@ try:
 except Exception:
     pass
 # ================================================================
+
 
 
