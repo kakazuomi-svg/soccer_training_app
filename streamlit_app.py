@@ -143,19 +143,19 @@ if submitted:
         col_idx = headers.index(col) + 1  # A=1, B=2, ...
         if col_idx == 1:
         # ★ A列だけは“必ず文字列”で保存
-        if col == DATE_COL_NAME:
-            row.append(f"'{date_disp}")  # 'YYYY/MM/DD として強制テキスト
+            if col == DATE_COL_NAME:
+                row.append(f"'{date_disp}")  # 'YYYY/MM/DD として強制テキスト
+            else:
+                v = st.session_state.get(f"form_{col}", "")
+                row.append("" if v is None else f"'{str(v)}")
+        elif col == DATE_COL_NAME:
+            row.append(date_disp)  # 日付列（A列でなければ通常の文字列）
+        elif col == "メモ":
+            v = st.session_state.get(f"form_{col}", "")
+            row.append("" if v is None else str(v))
         else:
             v = st.session_state.get(f"form_{col}", "")
-            row.append("" if v is None else f"'{str(v)}")
-    elif col == DATE_COL_NAME:
-        row.append(date_disp)  # 日付列（A列でなければ通常の文字列）
-    elif col == "メモ":
-        v = st.session_state.get(f"form_{col}", "")
-        row.append("" if v is None else str(v))
-    else:
-        v = st.session_state.get(f"form_{col}", "")
-        row.append(parse_number_or_blank(col, v))  # 数値化（空は空のまま）
+            row.append(parse_number_or_blank(col, v))  # 数値化（空は空のまま）
 
    # 4) 更新 or 追加
     end_cell = rowcol_to_a1(row_index if row_index else 1, len(headers))
@@ -179,6 +179,7 @@ if submitted:
     st.session_state["_last_saved_key"] = pending_key
 
     st.success("保存しました。")
+
 
 
 
