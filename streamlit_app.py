@@ -88,6 +88,15 @@ with st.form("入力フォーム"):
 
     submitted = st.form_submit_button("保存")
 
+# -------- 保存（同日付は上書き／なければ追加）--------
+if submitted:
+    # 1) キー（DATE_COL_NAME）を正規化
+    raw = st.session_state.get(f"form_{DATE_COL_NAME}", "")
+    date_key = normalize_date_str(raw)
+    if not date_key:
+        st.error(f"{DATE_COL_NAME} は 8桁の数字（例: {DATE_EXAMPLE} / 2025-07-15 も可）で入力してください。")
+        st.stop()
+    date_disp = display_date_str(date_key)  # "YYYY/MM/DD" で保存する表示値
 
     # 2) 既存検索：DATE_COL_NAME の列で探す
     if DATE_COL_NAME not in headers:
@@ -105,7 +114,7 @@ with st.form("入力フォーム"):
     row = []
     for col in headers:
         if col == DATE_COL_NAME:
-            row.append(date_disp)
+            row.append(date_disp)  # 日付は YYYY/MM/DD で保存
         else:
             val = st.session_state.get(f"form_{col}", "")
             row.append("" if val is None else str(val))
@@ -118,33 +127,14 @@ with st.form("入力フォーム"):
     else:
         ws.append_row(row, value_input_option="USER_ENTERED")
 
-  # ★ 4.5) 保存直後ソート（ここを追加）
+    # 4.5) 保存直後ソート（ヘッダー除外で全列）
     ws.sort(
         (date_col_idx, 'asc'),
-        range=f"A2:{_col_end_ref(len(headers))}"   # ヘッダー除外で全列
+        range=f"A2:{_col_end_ref(len(headers))}"
     )
 
-    # 5) 入力欄クリア（文字列でリセット）
+    # 5) 入力欄クリア（popで消す→次回描画でdefaultが入る）
     for col in headers:
         st.session_state.pop(f"form_{col}", None)
+
     st.success("保存しました。")
-
-# -------- 一覧（文字列ソート：YYYYMMDDならそのまま昇順OK）--------
-try:
-    data = ws.get_all_values()
-    if len(data) >= 2:
-        df = pd.DataFrame(data[1:], columns=data[0])
-        if DATE_COL_NAME in df.columns:
-            # 非数字も混ざる可能性があるので、normalize してからソートキーに
-            df["_k"] = df[DATE_COL_NAME].apply(normalize_date_str)
-            df = df.sort_values("_k", na_position="last").drop(columns=["_k"]).reset_index(drop=True)
-        st.dataframe(df, use_container_width=True)
-except Exception:
-    pass
-# ================================================================
-
-
-
-
-
-
