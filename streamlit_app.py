@@ -119,7 +119,7 @@ if submitted:
             val = st.session_state.get(f"form_{col}", "")
             row.append("" if val is None else str(val))
 
-    # 4) 更新 or 追加
+   # 4) 更新 or 追加
     end_cell = rowcol_to_a1(row_index if row_index else 1, len(headers))
     rng = f"A{row_index}:{end_cell}" if row_index else None
     if row_index:
@@ -139,4 +139,5 @@ if submitted:
         st.session_state.pop(f"form_{col}", None)
 
     st.success("保存しました。")
+
 
