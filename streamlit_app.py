@@ -57,6 +57,10 @@ def normalize_date_str(s: str) -> str:
     """日付文字列から数字だけを取り出し、8桁(YYYYMMDD)なら返す。ダメなら空を返す。"""
     digits = "".join(ch for ch in (s or "") if ch.isdigit())
     return digits if len(digits) == 8 else ""
+                  
+def display_date_str(date_key: str) -> str:
+    """YYYYMMDD -> YYYY/MM/DD（常に文字列）"""
+    return f"{date_key[0:4]}/{date_key[4:6]}/{date_key[6:8]}"
 
 # -------- セッション初期化（全部テキスト） --------
 for col in headers:
@@ -83,6 +87,7 @@ if submitted:
     # 1) キー（DATE_COL_NAME）を正規化
     raw = st.session_state[f"form_{DATE_COL_NAME}"]
     date_key = normalize_date_str(raw)
+    date_disp = display_date_str(date_key) 
     if not date_key:
         st.error(f"{DATE_COL_NAME} は 8桁の数字（例: {DATE_EXAMPLE} / 2025-07-15 も可）で入力してください。")
         st.stop()
@@ -103,7 +108,7 @@ if submitted:
     row = []
     for col in headers:
         if col == DATE_COL_NAME:
-            row.append(date_key)
+            row.append(date_disp)
         else:
             val = st.session_state.get(f"form_{col}", "")
             row.append("" if val is None else str(val))
@@ -135,4 +140,5 @@ try:
 except Exception:
     pass
 # ================================================================
+
 
