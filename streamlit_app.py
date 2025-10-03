@@ -110,6 +110,13 @@ with st.form("入力フォーム"):
 
 # -------- 保存（同日付は上書き／なければ追加）--------
 if submitted:
+    # --- 多重保存ガード（同じキーを連続保存しない） ---
+last_key = st.session_state.get("_last_saved_key")
+pending_key = st.session_state.get(f"form_{DATE_COL_NAME}", "")
+if last_key == pending_key:
+    st.info("同じ日付の保存は直前に完了しています。")
+    submitted = False  # この回は保存をスキップ
+
     # 1) キー（DATE_COL_NAME）を正規化
     raw = st.session_state.get(f"form_{DATE_COL_NAME}", "")
     date_key = normalize_date_str(raw)
@@ -131,10 +138,10 @@ if submitted:
             break
 
    # 3) 行データを構築（A列は必ず文字列、日付/メモは文字列、その他は数値化）
-row = []
-for col in headers:
-    col_idx = headers.index(col) + 1  # A=1, B=2, ...
-    if col_idx == 1:
+    row = []
+    for col in headers:
+        col_idx = headers.index(col) + 1  # A=1, B=2, ...
+        if col_idx == 1:
         # ★ A列だけは“必ず文字列”で保存
         if col == DATE_COL_NAME:
             row.append(f"'{date_disp}")  # 'YYYY/MM/DD として強制テキスト
@@ -168,8 +175,11 @@ for col in headers:
     # 5) 入力欄クリア（popで消す→次回描画でdefaultが入る）
     for col in headers:
         st.session_state.pop(f"form_{col}", None)
+    # 次回の多重保存を防ぐために、今回のキーを記録
+    st.session_state["_last_saved_key"] = pending_key
 
     st.success("保存しました。")
+
 
 
 
