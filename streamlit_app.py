@@ -69,6 +69,21 @@ def display_date_str(date_key: str) -> str:
     """YYYYMMDD -> YYYY/MM/DD（常に文字列）"""
     return f"{date_key[0:4]}/{date_key[4:6]}/{date_key[6:8]}"
 
+def parse_number_or_blank(label: str, s: str):
+    """
+    空文字は空のまま返す。
+    数字なら int/float に変換して返す。
+    数字でない文字が入っていたらエラー表示して停止。
+    """
+    s = (s or "").strip()
+    if s == "":
+        return ""  # 空は許容
+    try:
+        f = float(s)
+        return int(f) if f.is_integer() else f
+    except ValueError:
+        st.error(f"『{label}』は数値で入力してください（例: 12, 12.3）。\n入力値: {s}")
+        st.stop()
 
 
 # -------- UI（見出しに自動追従・全部 text_input）--------
@@ -110,14 +125,18 @@ if submitted:
             row_index = i
             break
 
-    # 3) 行データを“全部文字列”で構築（見出し順）
+    # 3) 行データを構築（メモ以外は数値化、日付は YYYY/MM/DD で保存）
     row = []
     for col in headers:
         if col == DATE_COL_NAME:
-            row.append(date_disp)  # 日付は YYYY/MM/DD で保存
-        else:
+            row.append(date_disp)  # 日付は "YYYY/MM/DD"
+        elif col == "メモ":
             val = st.session_state.get(f"form_{col}", "")
             row.append("" if val is None else str(val))
+        else:
+        # ←ここがポイント：空は空、数字は数値型で保存
+            val = st.session_state.get(f"form_{col}", "")
+            row.append(parse_number_or_blank(col, val))
 
    # 4) 更新 or 追加
     end_cell = rowcol_to_a1(row_index if row_index else 1, len(headers))
@@ -139,6 +158,7 @@ if submitted:
         st.session_state.pop(f"form_{col}", None)
 
     st.success("保存しました。")
+
 
 
 
