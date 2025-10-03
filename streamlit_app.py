@@ -39,6 +39,11 @@ try:
     if not headers:
         headers = [DATE_COL_NAME, "メモ"]
         ws.insert_row(headers, 1)
+     # ★ A列をテキスト形式に固定（ヘッダー除外）
+    try:
+        ws.format("A2:A", {"numberFormat": {"type": "TEXT"}})
+    except Exception:
+        pass
 except SpreadsheetNotFound:
     st.error("スプレッドシートが見つかりません。.streamlit/secrets.toml に SHEET_URL か SHEET_KEY を入れてください。")
     st.stop()
@@ -125,18 +130,25 @@ if submitted:
             row_index = i
             break
 
-    # 3) 行データを構築（メモ以外は数値化、日付は YYYY/MM/DD で保存）
-    row = []
-    for col in headers:
+   # 3) 行データを構築（A列は必ず文字列、日付/メモは文字列、その他は数値化）
+row = []
+for col in headers:
+    col_idx = headers.index(col) + 1  # A=1, B=2, ...
+    if col_idx == 1:
+        # ★ A列だけは“必ず文字列”で保存
         if col == DATE_COL_NAME:
-            row.append(date_disp)  # 日付は "YYYY/MM/DD"
-        elif col == "メモ":
-            val = st.session_state.get(f"form_{col}", "")
-            row.append("" if val is None else str(val))
+            row.append(f"'{date_disp}")  # 'YYYY/MM/DD として強制テキスト
         else:
-        # ←ここがポイント：空は空、数字は数値型で保存
-            val = st.session_state.get(f"form_{col}", "")
-            row.append(parse_number_or_blank(col, val))
+            v = st.session_state.get(f"form_{col}", "")
+            row.append("" if v is None else f"'{str(v)}")
+    elif col == DATE_COL_NAME:
+        row.append(date_disp)  # 日付列（A列でなければ通常の文字列）
+    elif col == "メモ":
+        v = st.session_state.get(f"form_{col}", "")
+        row.append("" if v is None else str(v))
+    else:
+        v = st.session_state.get(f"form_{col}", "")
+        row.append(parse_number_or_blank(col, v))  # 数値化（空は空のまま）
 
    # 4) 更新 or 追加
     end_cell = rowcol_to_a1(row_index if row_index else 1, len(headers))
@@ -158,6 +170,7 @@ if submitted:
         st.session_state.pop(f"form_{col}", None)
 
     st.success("保存しました。")
+
 
 
 
