@@ -186,31 +186,31 @@ if submitted:
    # 3) 行データを構築（A列=文字列、日付/メモ=文字列、INT_COLS=整数、その他=数値可）
     INT_COLS = {"年齢", "リフティングレベル", "疲労度"}  # 既に上で定義済みなら重複定義は不要
 
-    row = []
-    for col_idx, col in enumerate(headers, start=1):  # A=1, B=2, ...
-        key = f"form_{col}"
+   # 3) 行データを構築（A列=文字列、日付/メモ=文字列、INT_COLS=整数、その他=数値）
+row = []
+for col_idx, col in enumerate(headers, start=1):  # A=1, B=2, ...
+    key = f"form_{col}"
 
-        if col_idx == 1:
-        # ★ A列だけは必ず文字列
-            if col == DATE_COL_NAME:
-                row.append(f"'{date_disp}")  # 'YYYY/MM/DD としてテキスト固定
-            else:
-                v = st.session_state.get(key, "")
-                row.append("" if v is None else f"'{str(v)}")
-        elif col == DATE_COL_NAME:
-            row.append(date_disp)  # 日付列（A列でなければ通常の文字列）
-        elif col == "メモ":
-            v = st.session_state.get(key, "")
-            row.append("" if v is None else str(v))
-        elif col in INT_COLS:
-        # 整数専用（小数はエラー）
-            v = st.session_state.get(key, "")
-            row.append(parse_int_or_blank(col, v))
+    if col_idx == 1:
+        # A列は必ず文字列
+        if col == DATE_COL_NAME:
+            row.append(f"'{date_disp}")  # 'YYYY/MM/DD
         else:
-        # 小数OK（空は空）
             v = st.session_state.get(key, "")
-            row.append(parse_number_or_blank(col, v))
-                 INT_COLS = {"年齢", "リフティングレベル", "疲労度"}
+            row.append("" if v is None else f"'{str(v)}")
+    elif col == DATE_COL_NAME:
+        row.append(date_disp)
+    elif col == "メモ":
+        v = st.session_state.get(key, "")
+        row.append("" if v is None else str(v))
+    elif col in INT_COLS:
+        v = st.session_state.get(key, "")
+        row.append(parse_int_or_blank(col, v))      # 整数限定
+    else:
+        # 小数OK（空は空）
+        v = st.session_state.get(key, "")
+        row.append(parse_number_or_blank(col, v))
+
 
    # 4) 更新 or 追加
     end_cell = rowcol_to_a1(row_index if row_index else 1, len(headers))
@@ -234,6 +234,7 @@ if submitted:
     st.session_state["_last_saved_key"] = pending_key
 
     st.success("保存しました。")
+
 
 
 
