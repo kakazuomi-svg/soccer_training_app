@@ -183,10 +183,7 @@ if submitted:
             row_index = i
             break
 
-   # 3) 行データを構築（A列=文字列、日付/メモ=文字列、INT_COLS=整数、その他=数値可）
-    INT_COLS = {"年齢", "リフティングレベル", "疲労度"}  # 既に上で定義済みなら重複定義は不要
-
-   # 3) 行データを構築（A列=文字列、日付/メモ=文字列、INT_COLS=整数、その他=数値）
+    # 3) 行データを構築（A列=文字列、日付/メモ=文字列、INT_COLS=整数、その他=数値）
 row = []
 for col_idx, col in enumerate(headers, start=1):  # A=1, B=2, ...
     key = f"form_{col}"
@@ -234,6 +231,7 @@ for col_idx, col in enumerate(headers, start=1):  # A=1, B=2, ...
     st.session_state["_last_saved_key"] = pending_key
 
     st.success("保存しました。")
+
 
 
 
