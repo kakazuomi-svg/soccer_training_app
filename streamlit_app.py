@@ -22,7 +22,7 @@ client = gspread.authorize(creds)
 SHEET_URL = st.secrets.get("SHEET_URL")
 SHEET_KEY = st.secrets.get("SHEET_KEY")
 
-# -------- シート接続 --------
+# -------- シート接続（丸ごと置き換え）--------
 try:
     if SHEET_URL:
         sh = client.open_by_url(SHEET_URL)
@@ -30,45 +30,40 @@ try:
         sh = client.open_by_key(SHEET_KEY)
     else:
         sh = client.open("soccer_training")  # 最終手段
+
     try:
         ws = sh.worksheet(WORKSHEET_NAME)
     except WorksheetNotFound:
         ws = sh.get_worksheet(0)
 
+    # ヘッダー取得＆初期化
     headers = ws.row_values(1)
     if not headers:
         headers = [DATE_COL_NAME, "メモ"]
         ws.insert_row(headers, 1)
 
-    # ★ 見出し名ベースで列フォーマットを設定（順番が変わっても対応）
-    try:
-        from gspread.utils import rowcol_to_a1
+    # ===== 列フォーマットを見出し名ベースで固定 =====
+    from gspread.utils import rowcol_to_a1
 
-    # 見出し名→列番号（1始まり）
-        _col_idx = {name: i + 1 for i, name in enumerate(headers)}
+    # 見出し名 -> 列番号（1始まり）
+    _col_idx = {name: i + 1 for i, name in enumerate(headers)}
 
-        def _col_letter(idx: int) -> str:
-            return rowcol_to_a1(1, idx).rstrip("0123456789")
+    def _col_letter(idx: int) -> str:
+        return rowcol_to_a1(1, idx).rstrip("0123456789")
 
-        def _col_range(idx: int) -> str:
-            L = _col_letter(idx)
-            return f"{L}2:{L}"  # ヘッダー除外
+    def _col_range(idx: int) -> str:
+        L = _col_letter(idx)
+        return f"{L}2:{L}"  # ヘッダー除外で下まで
 
-    # A列は常にテキスト
+    # A列はテキスト（'YYYY/MM/DD を壊さない）
     ws.format(_col_range(1), {"numberFormat": {"type": "TEXT"}})
 
-    # 年齢 / リフティングレベル / 疲労度 を整数表示（0）に固定
+    # 年齢 / リフティングレベル / 疲労度 は整数表示（0桁）
     for name in ("年齢", "リフティングレベル", "疲労度"):
         if name in _col_idx:
-            ws.format(_col_range(_col_idx[name]), {"numberFormat": {"type": "NUMBER", "pattern": "0"}})
-except Exception:
-    pass
+            ws.format(_col_range(_col_idx[name]),
+                      {"numberFormat": {"type": "NUMBER", "pattern": "0"}})
 
-     # ★ A列をテキスト形式に固定（ヘッダー除外）
-    try:
-        ws.format("A2:A", {"numberFormat": {"type": "TEXT"}})
-    except Exception:
-        pass
 except SpreadsheetNotFound:
     st.error("スプレッドシートが見つかりません。.streamlit/secrets.toml に SHEET_URL か SHEET_KEY を入れてください。")
     st.stop()
@@ -215,6 +210,7 @@ if submitted:
     st.session_state["_last_saved_key"] = pending_key
 
     st.success("保存しました。")
+
 
 
 
