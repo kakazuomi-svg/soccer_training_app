@@ -112,6 +112,29 @@ def parse_number_or_blank(label: str, s: str):
     except ValueError:
         st.error(f"『{label}』は数値で入力してください（例: 12, 12.3）。\n入力値: {s}")
         st.stop()
+def parse_int_or_blank(label: str, s: str):
+    """
+    空は空のまま。整数以外はエラーで停止。
+    12 や 12.0 はOK（→ 12 にする）。12.3 はNG。
+    全角数字は半角に寄せる。
+    """
+    s = (s or "").strip()
+    if s == "":
+        return ""
+    # 全角→半角
+    table = str.maketrans("０１２３４５６７８９＋－．", "0123456789+-.")
+    s = s.translate(table)
+    try:
+        f = float(s)
+        if f.is_integer():
+            return int(f)
+        else:
+            st.error(f"『{label}』は整数で入力してください（例: 12）。小数は不可：{s}")
+            st.stop()
+    except ValueError:
+        st.error(f"『{label}』は整数で入力してください（例: 12）。入力値：{s}")
+        st.stop()
+
 
 
 # -------- UI（見出しに自動追従・全部 text_input）--------
@@ -187,6 +210,7 @@ if submitted:
         # 小数OK（空は空）
             v = st.session_state.get(key, "")
             row.append(parse_number_or_blank(col, v))
+                 INT_COLS = {"年齢", "リフティングレベル", "疲労度"}
 
    # 4) 更新 or 追加
     end_cell = rowcol_to_a1(row_index if row_index else 1, len(headers))
@@ -210,6 +234,7 @@ if submitted:
     st.session_state["_last_saved_key"] = pending_key
 
     st.success("保存しました。")
+
 
 
 
