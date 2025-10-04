@@ -135,7 +135,6 @@ def parse_int_or_blank(label: str, s: str):
         st.error(f"『{label}』は整数で入力してください（例: 12）。入力値：{s}")
         st.stop()
 
-# === 日付変更時のコールバック ===
 def load_existing_data():
     """入力欄の日付から既存データを読み込み、session_state に反映"""
     raw = st.session_state.get(f"form_{DATE_COL_NAME}", "")
@@ -161,10 +160,7 @@ def load_existing_data():
             key = f"form_{col}"
             val = row_vals[j] if j < len(row_vals) else ""
             st.session_state[key] = "" if val is None else str(val)
-        st.session_state["_loaded_row"] = target_row
         st.toast(f"登録済みデータを読み込みました（日付: {display_date_str(date_key)}）", icon="📅")
-    else:
-        st.session_state["_loaded_row"] = None
 
 # -------- UI（見出しに自動追従・全部 text_input）--------
 st.title("サッカー特訓入力（全部文字列モード）")
@@ -283,6 +279,7 @@ if submitted:
         st.session_state["_last_saved_key"] = pending_raw
 
         st.success("保存しました。")
+
 
 
 
