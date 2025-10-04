@@ -194,21 +194,28 @@ if DATE_COL_NAME in headers:
                 prefill[col] = "" if val is None else str(val)
 
 
+# フォームの前
+日付キー = f"form_{DATE_COL_NAME}"
+default_date = today_str()
+st.text_input(
+    f"{DATE_COL_NAME}（例: 20250715）",
+    key=日付キー,
+    value=st.session_state.get(日付キー, default_date),
+    placeholder="YYYYMMDD",
+    on_change=load_existing_data,   # ← フォームの外なら動く！
+)
+
 with st.form("入力フォーム"):
     for col in headers:
-        key = f"form_{col}"
-        default = today_str() if col == DATE_COL_NAME else ""
-        # ★ ここがポイント：まず prefill を見る → なければ session_state → それも無ければ default
-        current = prefill.get(col, st.session_state.get(key, default))
-
         if col == DATE_COL_NAME:
-            st.text_input(f"{col}（例: 20250715）", key=key, value=current, placeholder="YYYYMMDD", on_change=load_existing_data)
-        elif col == "メモ":
-            st.text_input(col, key=key, value=current, placeholder="任意")
-        else:
-            st.text_input(col, key=key, value=current, placeholder="空でもOK（数値も文字列で保存）")
-
+            continue  # ← 外に出したのでスキップ
+        key = f"form_{col}"
+        st.text_input(col, key=key, placeholder="任意 or 数値OKなど")
     submitted = st.form_submit_button("保存")
+
+
+
+
 
 # -------- 保存（同日付は上書き／なければ追加）--------
 if submitted:
@@ -279,6 +286,7 @@ if submitted:
         st.session_state["_last_saved_key"] = pending_raw
 
         st.success("保存しました。")
+
 
 
 
