@@ -51,6 +51,14 @@ except APIError:
     svc = st.secrets["google_service_account"].get("client_email", "(不明)")
     st.error(f"アクセス不可。シートを **{svc}** に“編集者”で共有、Sheets/Drive API有効化、SHEET_URL/KEY を確認。")
     st.stop()
+  
+# ★ 年齢(B) / リフティングレベル(K) / 疲労度(P) を整数表示に固定
+    try:
+        ws.format("B2:B", {"numberFormat": {"type": "NUMBER", "pattern": "0"}})
+        ws.format("K2:K", {"numberFormat": {"type": "NUMBER", "pattern": "0"}})
+        ws.format("P2:P", {"numberFormat": {"type": "NUMBER", "pattern": "0"}})
+    except Exception:
+        pass
 
 # -------- ユーティリティ（全部文字列） --------
 def today_str() -> str:
@@ -182,6 +190,7 @@ if submitted:
     st.session_state["_last_saved_key"] = pending_key
 
     st.success("保存しました。")
+
 
 
 
