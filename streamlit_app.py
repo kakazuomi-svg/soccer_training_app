@@ -206,7 +206,7 @@ with st.form("入力フォーム"):
         current = prefill.get(col, st.session_state.get(key, default))
 
         if col == DATE_COL_NAME:
-            st.text_input(f"{col}（例: 20250715）", key=key, value=current, placeholder="YYYYMMDD"), on_change=load_existing_data
+            st.text_input(f"{col}（例: 20250715）", key=key, value=current, placeholder="YYYYMMDD", on_change=load_existing_data)
         elif col == "メモ":
             st.text_input(col, key=key, value=current, placeholder="任意")
         else:
@@ -283,6 +283,7 @@ if submitted:
         st.session_state["_last_saved_key"] = pending_raw
 
         st.success("保存しました。")
+
 
 
 
