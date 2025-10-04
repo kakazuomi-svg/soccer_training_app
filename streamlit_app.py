@@ -139,11 +139,42 @@ def parse_int_or_blank(label: str, s: str):
 
 # -------- UI（見出しに自動追従・全部 text_input）--------
 st.title("サッカー特訓入力（全部文字列モード）")
+
+# === 既存データの自動読み込み（入力欄の日付に追従） ===
+prefill = {}          # ← フォームの value に渡す辞書
+loaded_row_index = None
+
+if DATE_COL_NAME in headers:
+    # 入力欄に現在表示されている日付（なければ今日）を8桁に正規化
+    raw_in_form = st.session_state.get(f"form_{DATE_COL_NAME}", today_str())
+    pending_key = normalize_date_str(raw_in_form) or today_str()
+
+    # シートの「日付」列から該当行を探す
+    date_col_idx = headers.index(DATE_COL_NAME) + 1
+    col_vals = ws.col_values(date_col_idx)[1:]  # ヘッダー除外
+    for i, v in enumerate(col_vals, start=2):
+        if normalize_date_str(v) == pending_key:
+            loaded_row_index = i
+            break
+
+    # 見つかったら、その行の値をフォームにプリセット
+    if loaded_row_index:
+        row_vals = ws.row_values(loaded_row_index)
+        for j, col in enumerate(headers):
+            val = row_vals[j] if j < len(row_vals) else ""
+            if col == DATE_COL_NAME:
+                # 入力欄では常に 8桁（YYYYMMDD）で見せる
+                prefill[col] = normalize_date_str(val) or pending_key
+            else:
+                prefill[col] = "" if val is None else str(val)
+
+
 with st.form("入力フォーム"):
     for col in headers:
         key = f"form_{col}"
         default = today_str() if col == DATE_COL_NAME else ""
-        current = st.session_state.get(key, default)
+        # ★ ここがポイント：まず prefill を見る → なければ session_state → それも無ければ default
+        current = prefill.get(col, st.session_state.get(key, default))
 
         if col == DATE_COL_NAME:
             st.text_input(f"{col}（例: 20250715）", key=key, value=current, placeholder="YYYYMMDD")
@@ -223,6 +254,7 @@ if submitted:
         st.session_state["_last_saved_key"] = pending_raw
 
         st.success("保存しました。")
+
 
 
 
