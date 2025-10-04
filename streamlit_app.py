@@ -156,81 +156,75 @@ with st.form("入力フォーム"):
 
 # -------- 保存（同日付は上書き／なければ追加）--------
 if submitted:
-    # --- 多重保存ガード（同じキーを連続保存しない） ---
-    last_key = st.session_state.get("_last_saved_key")
-    pending_key = st.session_state.get(f"form_{DATE_COL_NAME}", "")
-    if last_key == pending_key:
+    # --- 多重保存ガード（直前と同じキーならスキップ） ---
+    pending_raw = st.session_state.get(f"form_{DATE_COL_NAME}", "")
+    pending_norm = normalize_date_str(pending_raw)
+    last_norm = normalize_date_str(st.session_state.get("_last_saved_key", ""))
+    if pending_norm and pending_norm == last_norm:
         st.info("同じ日付の保存は直前に完了しています。")
-        submitted = False  # この回は保存をスキップ
+    else:
+        # 1) 日付キー（8桁）と表示用を作成
+        date_key = normalize_date_str(pending_raw)
+        if len(date_key) != 8:
+            st.error(f"{DATE_COL_NAME} は 8桁の数字（例: {DATE_EXAMPLE}）で入力してください。")
+            st.stop()
+        date_disp = display_date_str(date_key)  # "YYYY/MM/DD"
 
-    # 1) キー（DATE_COL_NAME）を正規化
-    raw = st.session_state.get(f"form_{DATE_COL_NAME}", "")
-    date_key = normalize_date_str(raw)
-    if not date_key:
-        st.error(f"{DATE_COL_NAME} は 8桁の数字（例: {DATE_EXAMPLE} / 2025-07-15 も可）で入力してください。")
-        st.stop()
-    date_disp = display_date_str(date_key)  # "YYYY/MM/DD" で保存する表示値
+        # 2) 既存検索（DATE_COL_NAME 列で探す）
+        if DATE_COL_NAME not in headers:
+            st.error(f"ヘッダーに『{DATE_COL_NAME}』がありません。")
+            st.stop()
+        date_col_idx = headers.index(DATE_COL_NAME) + 1  # 1始まり
+        existing = ws.col_values(date_col_idx)[1:]       # 見出し除外
+        row_index = None
+        for i, v in enumerate(existing, start=2):
+            if normalize_date_str(v) == date_key:
+                row_index = i
+                break
 
-    # 2) 既存検索：DATE_COL_NAME の列で探す
-    if DATE_COL_NAME not in headers:
-        st.error(f"ヘッダーに『{DATE_COL_NAME}』がありません。")
-        st.stop()
-    date_col_idx = headers.index(DATE_COL_NAME) + 1  # 1始まり
-    existing = ws.col_values(date_col_idx)[1:]       # 見出し除外
-    row_index = None
-    for i, v in enumerate(existing, start=2):
-        if normalize_date_str(v) == date_key:
-            row_index = i
-            break
+        # 3) 行データを構築（A列=文字列、日付/メモ=文字列、INT_COLS=整数、その他=数値）
+        row = []
+        for col_idx, col in enumerate(headers, start=1):  # A=1, B=2, ...
+            key = f"form_{col}"
+            if col_idx == 1:
+                # ★ A列は必ず文字列
+                if col == DATE_COL_NAME:
+                    row.append(f"'{date_disp}")  # 'YYYY/MM/DD
+                else:
+                    v = st.session_state.get(key, "")
+                    row.append("" if v is None else f"'{str(v)}")
+            elif col == DATE_COL_NAME:
+                row.append(date_disp)
+            elif col == "メモ":
+                v = st.session_state.get(key, "")
+                row.append("" if v is None else str(v))
+            elif col in INT_COLS:
+                v = st.session_state.get(key, "")
+                row.append(parse_int_or_blank(col, v))      # 整数限定
+            else:
+                v = st.session_state.get(key, "")
+                row.append(parse_number_or_blank(col, v))   # 小数OK（空は空）
 
-    # 3) 行データを構築（A列=文字列、日付/メモ=文字列、INT_COLS=整数、その他=数値）
-row = []
-for col_idx, col in enumerate(headers, start=1):  # A=1, B=2, ...
-    key = f"form_{col}"
-
-    if col_idx == 1:
-        # A列は必ず文字列
-        if col == DATE_COL_NAME:
-            row.append(f"'{date_disp}")  # 'YYYY/MM/DD
+        # 4) 更新 or 追加
+        from gspread.utils import rowcol_to_a1
+        if row_index:
+            end_cell = rowcol_to_a1(row_index, len(headers))
+            ws.update(f"A{row_index}:{end_cell}", [row])
         else:
-            v = st.session_state.get(key, "")
-            row.append("" if v is None else f"'{str(v)}")
-    elif col == DATE_COL_NAME:
-        row.append(date_disp)
-    elif col == "メモ":
-        v = st.session_state.get(key, "")
-        row.append("" if v is None else str(v))
-    elif col in INT_COLS:
-        v = st.session_state.get(key, "")
-        row.append(parse_int_or_blank(col, v))      # 整数限定
-    else:
-        # 小数OK（空は空）
-        v = st.session_state.get(key, "")
-        row.append(parse_number_or_blank(col, v))
+            ws.append_row(row, value_input_option="USER_ENTERED")
+
+        # 4.5) 保存直後ソート（ヘッダー除外で全列）
+        end_cell = rowcol_to_a1(ws.row_count, len(headers))
+        ws.sort((date_col_idx, 'asc'), range=f"A2:{end_cell}")
+
+        # 5) 入力欄クリア & 直前キー記録（多重保存ガード用）
+        for col in headers:
+            st.session_state.pop(f"form_{col}", None)
+        st.session_state["_last_saved_key"] = pending_raw
+
+        st.success("保存しました。")
 
 
-   # 4) 更新 or 追加
-    end_cell = rowcol_to_a1(row_index if row_index else 1, len(headers))
-    rng = f"A{row_index}:{end_cell}" if row_index else None
-    if row_index:
-        ws.update(rng, [row])
-    else:
-        ws.append_row(row, value_input_option="USER_ENTERED")
-
-    # 4.5) 保存直後ソート（ヘッダー除外で全列）
-    end_cell = rowcol_to_a1(ws.row_count, len(headers))
-    ws.sort(
-     (date_col_idx, 'asc'),
-    range=f"A2:{end_cell}"
-    )
-
-    # 5) 入力欄クリア（popで消す→次回描画でdefaultが入る）
-    for col in headers:
-        st.session_state.pop(f"form_{col}", None)
-    # 次回の多重保存を防ぐために、今回のキーを記録
-    st.session_state["_last_saved_key"] = pending_key
-
-    st.success("保存しました。")
 
 
 
