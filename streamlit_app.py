@@ -39,6 +39,31 @@ try:
     if not headers:
         headers = [DATE_COL_NAME, "メモ"]
         ws.insert_row(headers, 1)
+
+    # ★ 見出し名ベースで列フォーマットを設定（順番が変わっても対応）
+    try:
+        from gspread.utils import rowcol_to_a1
+
+    # 見出し名→列番号（1始まり）
+        _col_idx = {name: i + 1 for i, name in enumerate(headers)}
+
+        def _col_letter(idx: int) -> str:
+            return rowcol_to_a1(1, idx).rstrip("0123456789")
+
+        def _col_range(idx: int) -> str:
+            L = _col_letter(idx)
+            return f"{L}2:{L}"  # ヘッダー除外
+
+    # A列は常にテキスト
+    ws.format(_col_range(1), {"numberFormat": {"type": "TEXT"}})
+
+    # 年齢 / リフティングレベル / 疲労度 を整数表示（0）に固定
+    for name in ("年齢", "リフティングレベル", "疲労度"):
+        if name in _col_idx:
+            ws.format(_col_range(_col_idx[name]), {"numberFormat": {"type": "NUMBER", "pattern": "0"}})
+except Exception:
+    pass
+
      # ★ A列をテキスト形式に固定（ヘッダー除外）
     try:
         ws.format("A2:A", {"numberFormat": {"type": "TEXT"}})
@@ -51,14 +76,6 @@ except APIError:
     svc = st.secrets["google_service_account"].get("client_email", "(不明)")
     st.error(f"アクセス不可。シートを **{svc}** に“編集者”で共有、Sheets/Drive API有効化、SHEET_URL/KEY を確認。")
     st.stop()
-  
-# ★ 年齢(B) / リフティングレベル(K) / 疲労度(P) を整数表示に固定
-    try:
-        ws.format("B2:B", {"numberFormat": {"type": "NUMBER", "pattern": "0"}})
-        ws.format("K2:K", {"numberFormat": {"type": "NUMBER", "pattern": "0"}})
-        ws.format("P2:P", {"numberFormat": {"type": "NUMBER", "pattern": "0"}})
-    except Exception:
-        pass
 
 # -------- ユーティリティ（全部文字列） --------
 def today_str() -> str:
@@ -148,25 +165,33 @@ if submitted:
             row_index = i
             break
 
-   # 3) 行データを構築（A列は必ず文字列、日付/メモは文字列、その他は数値化）
+   # 3) 行データを構築（A列=文字列、日付/メモ=文字列、INT_COLS=整数、その他=数値可）
+    INT_COLS = {"年齢", "リフティングレベル", "疲労度"}  # 既に上で定義済みなら重複定義は不要
+
     row = []
-    for col in headers:
-        col_idx = headers.index(col) + 1  # A=1, B=2, ...
+    for col_idx, col in enumerate(headers, start=1):  # A=1, B=2, ...
+        key = f"form_{col}"
+
         if col_idx == 1:
-        # ★ A列だけは“必ず文字列”で保存
+        # ★ A列だけは必ず文字列
             if col == DATE_COL_NAME:
-                row.append(f"'{date_disp}")  # 'YYYY/MM/DD として強制テキスト
+                row.append(f"'{date_disp}")  # 'YYYY/MM/DD としてテキスト固定
             else:
-                v = st.session_state.get(f"form_{col}", "")
+                v = st.session_state.get(key, "")
                 row.append("" if v is None else f"'{str(v)}")
         elif col == DATE_COL_NAME:
             row.append(date_disp)  # 日付列（A列でなければ通常の文字列）
         elif col == "メモ":
-            v = st.session_state.get(f"form_{col}", "")
+            v = st.session_state.get(key, "")
             row.append("" if v is None else str(v))
+        elif col in INT_COLS:
+        # 整数専用（小数はエラー）
+            v = st.session_state.get(key, "")
+            row.append(parse_int_or_blank(col, v))
         else:
-            v = st.session_state.get(f"form_{col}", "")
-            row.append(parse_number_or_blank(col, v))  # 数値化（空は空のまま）
+        # 小数OK（空は空）
+            v = st.session_state.get(key, "")
+            row.append(parse_number_or_blank(col, v))
 
    # 4) 更新 or 追加
     end_cell = rowcol_to_a1(row_index if row_index else 1, len(headers))
@@ -190,6 +215,7 @@ if submitted:
     st.session_state["_last_saved_key"] = pending_key
 
     st.success("保存しました。")
+
 
 
 
