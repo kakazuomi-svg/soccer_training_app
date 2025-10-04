@@ -135,7 +135,36 @@ def parse_int_or_blank(label: str, s: str):
         st.error(f"『{label}』は整数で入力してください（例: 12）。入力値：{s}")
         st.stop()
 
+# === 日付変更時のコールバック ===
+def load_existing_data():
+    """入力欄の日付から既存データを読み込み、session_state に反映"""
+    raw = st.session_state.get(f"form_{DATE_COL_NAME}", "")
+    date_key = normalize_date_str(raw)
+    if not date_key:
+        return
 
+    if DATE_COL_NAME not in headers:
+        return
+
+    date_col_idx = headers.index(DATE_COL_NAME) + 1
+    existing = ws.col_values(date_col_idx)[1:]  # 見出し除外
+
+    target_row = None
+    for i, v in enumerate(existing, start=2):
+        if normalize_date_str(v) == date_key:
+            target_row = i
+            break
+
+    if target_row:
+        row_vals = ws.row_values(target_row)
+        for j, col in enumerate(headers):
+            key = f"form_{col}"
+            val = row_vals[j] if j < len(row_vals) else ""
+            st.session_state[key] = "" if val is None else str(val)
+        st.session_state["_loaded_row"] = target_row
+        st.toast(f"登録済みデータを読み込みました（日付: {display_date_str(date_key)}）", icon="📅")
+    else:
+        st.session_state["_loaded_row"] = None
 
 # -------- UI（見出しに自動追従・全部 text_input）--------
 st.title("サッカー特訓入力（全部文字列モード）")
@@ -177,7 +206,7 @@ with st.form("入力フォーム"):
         current = prefill.get(col, st.session_state.get(key, default))
 
         if col == DATE_COL_NAME:
-            st.text_input(f"{col}（例: 20250715）", key=key, value=current, placeholder="YYYYMMDD")
+            st.text_input(f"{col}（例: 20250715）", key=key, value=current, placeholder="YYYYMMDD"), on_change=load_existing_data
         elif col == "メモ":
             st.text_input(col, key=key, value=current, placeholder="任意")
         else:
@@ -254,6 +283,7 @@ if submitted:
         st.session_state["_last_saved_key"] = pending_raw
 
         st.success("保存しました。")
+
 
 
 
