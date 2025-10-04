@@ -74,6 +74,9 @@ def display_date_str(date_key: str) -> str:
     """YYYYMMDD -> YYYY/MM/DD（常に文字列）"""
     return f"{date_key[0:4]}/{date_key[4:6]}/{date_key[6:8]}"
 
+# ★ 整数しか許さない列名（ヘッダー名で判定：B=年齢, K=リフティングレベル, P=疲労度）
+INT_COLS = {"年齢", "リフティングレベル", "疲労度"}
+
 def parse_number_or_blank(label: str, s: str):
     """
     空文字は空のまま返す。
@@ -179,6 +182,7 @@ if submitted:
     st.session_state["_last_saved_key"] = pending_key
 
     st.success("保存しました。")
+
 
 
 
