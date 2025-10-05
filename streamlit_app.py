@@ -272,7 +272,7 @@ if submitted:
         from gspread.utils import rowcol_to_a1
         if row_index:
             end_cell = rowcol_to_a1(row_index, len(headers))
-            ws.update(f"A{row_index}:{end_cell}", [row])
+            ws.update(f"A{row_index}:{end_cell}", [row], value_input_option="USER_ENTERED")
         else:
             ws.append_row(row, value_input_option="USER_ENTERED")
 
@@ -286,6 +286,7 @@ if submitted:
         st.session_state["_last_saved_key"] = pending_raw
 
         st.success("保存しました。")
+
 
 
 
